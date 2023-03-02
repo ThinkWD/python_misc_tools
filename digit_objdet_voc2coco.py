@@ -10,6 +10,15 @@ from pycocotools.coco import COCO
 from collections import Counter
 
 
+# 根目录
+root_path = os.getcwd()
+start_img_id = 0  # 图片 ID 起始值
+start_bbox_id = 0  # 检测框 ID 起始值
+# 生成的数据集允许的标签列表
+allow_list = ["0000", "0010"]  # 数字仪表
+# allow_list = ["0000", "0001"]  # 指针仪表
+
+
 # 遍历目录得到目录下的子文件夹
 def find_dir(path):
     return [item.path for item in os.scandir(path) if item.is_dir()]
@@ -57,7 +66,7 @@ def getXmlValue(root, name, length):
 
 
 # 解析单个 VOC 标注文件(xml)
-def getXml(imgpath, xmlpath, categories, img_id, bbox_id, task, remove_categories):
+def getXml(imgpath, xmlpath, categories, img_id, bbox_id, task):
     width, height = imagesize.get(imgpath)
     assert width > 0 and height > 0
     image = {
@@ -69,54 +78,56 @@ def getXml(imgpath, xmlpath, categories, img_id, bbox_id, task, remove_categorie
         "rotate": 0,
     }
     anns = []
+    # 检查task与文件是否存在
+    if task == "val" or not os.path.isfile(xmlpath):
+        return image, anns
 
-    if task != "val" and os.path.isfile(xmlpath):
-        tree = ET.parse(xmlpath)  # 打开文件
-        root = tree.getroot()  # 获取根节点
-        # 框信息
-        index = 0
-        for obj in getXmlValue(root, "object", 0):
-            # 取出 category
-            category = getXmlValue(obj, "name", 1).text
-            # 检查 category 是否在排除列表中
-            if category not in remove_categories:
-                # 更新 category 字典
-                if category not in categories:
-                    new_id = len(categories)
-                    categories[category] = new_id
-                # 得到 category_id
-                category_id = categories[category]
-                # 取出框
-                bndbox = getXmlValue(obj, "bndbox", 1)
-                xmin = int(getXmlValue(bndbox, "xmin", 1).text) - 1
-                ymin = int(getXmlValue(bndbox, "ymin", 1).text) - 1
-                xmax = int(getXmlValue(bndbox, "xmax", 1).text)
-                ymax = int(getXmlValue(bndbox, "ymax", 1).text)
-                assert xmax > xmin
-                assert ymax > ymin
-                o_width = abs(xmax - xmin)
-                o_height = abs(ymax - ymin)
-                annotation = {
-                    "image_id": img_id,
-                    "id": bbox_id + index,
-                    "bbox": [xmin, ymin, o_width, o_height],
-                    "iscrowd": 0,  # 设置分割数据，点的顺序为逆时针方向
-                    "segmentation": [[xmin, ymin, xmin, ymax, xmax, ymax, xmax, ymin]],
-                    "category_id": category_id,
-                    "area": o_width * o_height,
-                    "order": 1,
-                    # "ignore": 0,
-                }
-                index += 1
-                anns.append(annotation)
+    tree = ET.parse(xmlpath)  # 打开文件
+    root = tree.getroot()  # 获取根节点
+    index = 0  # 框信息
+    for obj in getXmlValue(root, "object", 0):
+        # 取出 category
+        category = getXmlValue(obj, "name", 1).text
+        # 检查 category 是否在允许列表中
+        if category not in allow_list:
+            continue
+        # 更新 category 字典
+        if category not in categories:
+            new_id = len(categories)
+            categories[category] = new_id
+        # 得到 category_id
+        category_id = categories[category]
+        # 取出框
+        bndbox = getXmlValue(obj, "bndbox", 1)
+        xmin = int(getXmlValue(bndbox, "xmin", 1).text) - 1
+        ymin = int(getXmlValue(bndbox, "ymin", 1).text) - 1
+        xmax = int(getXmlValue(bndbox, "xmax", 1).text)
+        ymax = int(getXmlValue(bndbox, "ymax", 1).text)
+        assert xmax > xmin
+        assert ymax > ymin
+        o_width = abs(xmax - xmin)
+        o_height = abs(ymax - ymin)
+        annotation = {
+            "image_id": img_id,
+            "id": bbox_id + index,
+            "bbox": [xmin, ymin, o_width, o_height],
+            "iscrowd": 0,  # 设置分割数据，点的顺序为逆时针方向
+            "segmentation": [[xmin, ymin, xmin, ymax, xmax, ymax, xmax, ymin]],
+            "category_id": category_id,
+            "area": o_width * o_height,
+            "order": 1,
+            # "ignore": 0,
+        }
+        index += 1
+        anns.append(annotation)
 
     return image, anns
 
 
 # 创建 coco
-def voc_convert(root_path, task, start_img_id, start_bbox_id, remove_categories):
+def voc_convert(task):
     json_dict = {"images": [], "annotations": [], "categories": []}  # 创建 coco 格式的基本结构
-    categories = {"": 0}  # 类别
+    categories = {}  # 类别
     # 获取初始索引ID
     img_id = start_img_id
     bbox_id = start_bbox_id
@@ -154,7 +165,6 @@ def voc_convert(root_path, task, start_img_id, start_bbox_id, remove_categories)
                     img_id,
                     bbox_id,
                     task,
-                    remove_categories,
                 )
                 # 更新索引ID
                 img_id += 1
@@ -185,47 +195,19 @@ def voc_convert(root_path, task, start_img_id, start_bbox_id, remove_categories)
 
 
 if __name__ == "__main__":
-    # root path
-    root_path = os.getcwd()
-    # 图片的ID起始值
-    start_img_id = 0
-    # 检测框的ID起始值
-    start_bbox_id = 0
-
-    remove_categories = ["person"]
 
     # 根据建立的文件夹判断要进行哪些任务
     train_dir = f"{root_path}/train"
     if os.path.exists(train_dir) and os.path.isdir(train_dir):
         print("\n[info] task : train...")
-        voc_convert(
-            root_path,
-            "train",
-            start_img_id,
-            start_bbox_id,
-            remove_categories,
-        )
-
+        voc_convert("train")
     test_dir = f"{root_path}/test"
     if os.path.exists(test_dir) and os.path.isdir(test_dir):
         print("\n[info] task : test...")
-        voc_convert(
-            root_path,
-            "test",
-            start_img_id,
-            start_bbox_id,
-            remove_categories,
-        )
-
+        voc_convert("test")
     val_dir = f"{root_path}/val"
     if os.path.exists(val_dir) and os.path.isdir(val_dir):
         print("\n[info] task : val...")
-        voc_convert(
-            root_path,
-            "val",
-            start_img_id,
-            start_bbox_id,
-            remove_categories,
-        )
+        voc_convert("val")
 
     print("\nAll process success\n")
