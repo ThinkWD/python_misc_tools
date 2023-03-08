@@ -33,6 +33,89 @@ categories = ["person", "bottle", "chair", "sofa", "bus", "car"]
 labelme_shape_type = ["circle", "rectangle", "line", "linestrip", "point", "polygon"]
 # 保存数据集中出现的不在允许列表中的标签, 用于最后检查允许列表是否正确
 skip_categories = []
+# 调色盘, 来自COCO的80类调色盘
+palette = [
+    (220, 20, 60),
+    (119, 11, 32),
+    (0, 0, 142),
+    (0, 0, 230),
+    (106, 0, 228),
+    (0, 60, 100),
+    (0, 80, 100),
+    (0, 0, 70),
+    (0, 0, 192),
+    (250, 170, 30),
+    (100, 170, 30),
+    (220, 220, 0),
+    (175, 116, 175),
+    (250, 0, 30),
+    (165, 42, 42),
+    (255, 77, 255),
+    (0, 226, 252),
+    (182, 182, 255),
+    (0, 82, 0),
+    (120, 166, 157),
+    (110, 76, 0),
+    (174, 57, 255),
+    (199, 100, 0),
+    (72, 0, 118),
+    (255, 179, 240),
+    (0, 125, 92),
+    (209, 0, 151),
+    (188, 208, 182),
+    (0, 220, 176),
+    (255, 99, 164),
+    (92, 0, 73),
+    (133, 129, 255),
+    (78, 180, 255),
+    (0, 228, 0),
+    (174, 255, 243),
+    (45, 89, 255),
+    (134, 134, 103),
+    (145, 148, 174),
+    (255, 208, 186),
+    (197, 226, 255),
+    (171, 134, 1),
+    (109, 63, 54),
+    (207, 138, 255),
+    (151, 0, 95),
+    (9, 80, 61),
+    (84, 105, 51),
+    (74, 65, 105),
+    (166, 196, 102),
+    (208, 195, 210),
+    (255, 109, 65),
+    (0, 143, 149),
+    (179, 0, 194),
+    (209, 99, 106),
+    (5, 121, 0),
+    (227, 255, 205),
+    (147, 186, 208),
+    (153, 69, 1),
+    (3, 95, 161),
+    (163, 255, 0),
+    (119, 0, 170),
+    (0, 182, 199),
+    (0, 165, 120),
+    (183, 130, 88),
+    (95, 32, 0),
+    (130, 114, 135),
+    (110, 129, 133),
+    (166, 74, 118),
+    (219, 142, 185),
+    (79, 210, 114),
+    (178, 90, 62),
+    (65, 70, 15),
+    (127, 167, 115),
+    (59, 105, 106),
+    (142, 108, 45),
+    (196, 172, 0),
+    (95, 54, 80),
+    (128, 76, 255),
+    (201, 57, 1),
+    (246, 0, 122),
+    (191, 162, 208),
+]
 
 
 # 遍历目录得到目录下的子文件夹
@@ -176,20 +259,19 @@ def parse_labelme_ann(imgpath, viz_imgpath, annpath, img_id, bbox_id, task):
             iscrowd=0,
         )
         anns_dict.append(annotation)
-        # 绘图并保存
-        palette = int(index * 255 / (len(masks) - 1))
-        palette = (palette, 128, 255 - palette)  # 获取颜色
-
+        # 绘图
+        color = palette[index % 80]  # 获取颜色
+        # 画mask
         mask = mask.astype(np.uint8)
         mask[mask == 0] = 255
         mask[mask == 1] = 128
         mask = PIL.Image.fromarray(mask, mode="L")
-        color_img = PIL.Image.new("RGB", mask.size, palette)
+        color_img = PIL.Image.new("RGB", mask.size, color)
         img = PIL.Image.composite(img, color_img, mask)
-
+        # 画框
         bbox = (bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3])  # bbox
         draw = PIL.ImageDraw.Draw(img)
-        draw.rectangle(bbox, outline=palette, width=2)
+        draw.rectangle(bbox, outline=color, width=2)
 
     img.save(viz_imgpath)
     return imgs_dict, anns_dict
@@ -209,11 +291,13 @@ def labelme_convert(task):
         pre_dir = os.path.basename(dir)
         # 获取img文件列表
         img_path = os.path.join(dir, "imgs")
-        assert os.path.exists(img_path) and os.path.isdir(img_path)
+        assert os.path.isdir(img_path)
         img_list = os.listdir(img_path)
+        # 自适应选定ann文件夹名
+        anndir = "anns_seg" if os.path.isdir(f"{task}/{pre_dir}/anns_seg") else "anns"
         # 创建 viz 验证图片的文件夹
-        if not os.path.exists(f"{task}/{pre_dir}/imgs_viz"):
-            os.makedirs(f"{task}/{pre_dir}/imgs_viz")
+        if not os.path.isdir(f"{task}_viz/{pre_dir}"):
+            os.makedirs(f"{task}_viz/{pre_dir}")
         # 设置 tqdm 进度条
         with tqdm(
             total=len(img_list),  # 迭代总数
@@ -227,8 +311,8 @@ def labelme_convert(task):
                 # 获取文件名(带多文件夹的相对路径)
                 file = file.strip()
                 imgpath = f"{task}/{pre_dir}/imgs/{file}"
-                viz_imgpath = f"{task}/{pre_dir}/imgs_viz/{file}"
-                annpath = f"{task}/{pre_dir}/anns/{file[:file.rindex('.')]}.json"
+                viz_imgpath = f"{task}_viz/{pre_dir}/{file}"
+                annpath = f"{task}/{pre_dir}/{anndir}/{file[:file.rindex('.')]}.json"
                 # 解析 ann 文件
                 imgs, anns = parse_labelme_ann(
                     imgpath, viz_imgpath, annpath, img_id, bbox_id, task
