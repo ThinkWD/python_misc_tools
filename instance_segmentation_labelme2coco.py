@@ -26,13 +26,13 @@ root_path = os.getcwd()
 start_imgs_id = 0  # 图片 ID 起始值
 start_bbox_id = 0  # 检测框 ID 起始值
 # 生成的数据集允许的标签列表
-# categories = ["D000", "D001"]  # 数字仪表
-# categories = ["P000", "P001"]  # 指针仪表
-# categories = ["__ignore__", "person", "bottle", "chair", "sofa", "bus", "car"]  # test
-categories = ["person", "bottle", "chair", "sofa", "bus", "car"]  # test
+categories = ["person", "bottle", "chair", "sofa", "bus", "car"]
 
 
+# 保存 labelme 支持的形状类型
 labelme_shape_type = ["circle", "rectangle", "line", "linestrip", "point", "polygon"]
+# 保存数据集中出现的不在允许列表中的标签, 用于最后检查允许列表是否正确
+skip_categories = []
 
 
 # 遍历目录得到目录下的子文件夹
@@ -121,9 +121,11 @@ def parse_labelme_ann(imgpath, viz_imgpath, annpath, img_id, bbox_id, task):
     masks = {}  # 用于存储每个实例的掩码
     segmentations = collections.defaultdict(list)  # 用于存储每个实例的分割点坐标
     for shape in anndata["shapes"]:
-        # 检查标签
+        # 检查 label 是否在允许列表中
         label = shape["label"]
         if label not in categories:
+            if label not in skip_categories:
+                skip_categories.append(label)
             continue
         # 检查形状类型
         shape_type = shape["shape_type"]
@@ -168,9 +170,9 @@ def parse_labelme_ann(imgpath, viz_imgpath, annpath, img_id, bbox_id, task):
             id=bbox_id + index,
             image_id=img_id,
             category_id=label_id,
+            bbox=bbox,
             segmentation=segmentations[instance],
             area=area,
-            bbox=bbox,
             iscrowd=0,
         )
         anns_dict.append(annotation)
@@ -195,10 +197,6 @@ def parse_labelme_ann(imgpath, viz_imgpath, annpath, img_id, bbox_id, task):
 
 def labelme_convert(task):
     data = dict(categories=[], images=[], annotations=[])
-    # 更新 categories 项
-    for id, category in enumerate(categories):
-        cat = {"id": id, "name": category, "supercategory": category}
-        data["categories"].append(cat)
     # 获取初始索引ID
     img_id = start_imgs_id
     bbox_id = start_bbox_id
@@ -251,27 +249,29 @@ def labelme_convert(task):
                 f"[Error] 路径{task}/{pre_dir}中有{not_ann_cnt}张图片不存在标注文件！！\n",
                 "\033[0m",
             )
+    # 更新 categories 项
+    for id, category in enumerate(categories):
+        cat = {"id": id, "name": category, "supercategory": category}
+        data["categories"].append(cat)
     # 导出并保存到json文件
     with open(f"./{task}.json", "w") as f:
         json.dump(data, f, indent=4)
     # 检查COCO文件是否正确
     checkCOCO(f"./{task}.json")
+    # 打印数据集中出现的不被允许的标签
+    if len(skip_categories) > 0:
+        print(f"\n\033[1;33m[Warning] 出现但不被允许的标签: \033[0m{skip_categories}")
 
 
 if __name__ == "__main__":
     # 根据建立的文件夹判断要进行哪些任务
-    print(root_path)
-    train_dir = f"{root_path}/train"
-    if os.path.exists(train_dir) and os.path.isdir(train_dir):
+    if os.path.isdir(f"{root_path}/train"):
         print("\n[info] task : train...")
         labelme_convert("train")
-    test_dir = f"{root_path}/test"
-    if os.path.exists(test_dir) and os.path.isdir(test_dir):
+    if os.path.isdir(f"{root_path}/test"):
         print("\n[info] task : test...")
         labelme_convert("test")
-    val_dir = f"{root_path}/val"
-    if os.path.exists(val_dir) and os.path.isdir(val_dir):
+    if os.path.isdir(f"{root_path}/val"):
         print("\n[info] task : val...")
         labelme_convert("val")
-
     print("\nAll process success\n")
