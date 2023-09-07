@@ -2,10 +2,10 @@
 #!/usr/bin/python
 
 import os
+import sys
 import json
 import math
 import uuid
-import sys
 import collections
 import PIL.Image
 import PIL.ImageDraw
@@ -23,99 +23,32 @@ except ImportError:
 
 # 根目录
 root_path = os.getcwd()
-start_imgs_id = 0  # 图片 ID 起始值
-start_bbox_id = 0  # 检测框 ID 起始值
 # 生成的数据集允许的标签列表
 categories = ["person", "bottle", "chair", "sofa", "bus", "car"]
-
-
-# 保存 labelme 支持的形状类型
-labelme_shape_type = ["circle", "rectangle", "line", "linestrip", "point", "polygon"]
 # 保存数据集中出现的不在允许列表中的标签, 用于最后检查允许列表是否正确
 skip_categories = []
-# 调色盘, 来自COCO的80类调色盘
-palette = [
-    (220, 20, 60),
-    (119, 11, 32),
-    (0, 0, 142),
-    (0, 0, 230),
-    (106, 0, 228),
-    (0, 60, 100),
-    (0, 80, 100),
-    (0, 0, 70),
-    (0, 0, 192),
-    (250, 170, 30),
-    (100, 170, 30),
-    (220, 220, 0),
-    (175, 116, 175),
-    (250, 0, 30),
-    (165, 42, 42),
-    (255, 77, 255),
-    (0, 226, 252),
-    (182, 182, 255),
-    (0, 82, 0),
-    (120, 166, 157),
-    (110, 76, 0),
-    (174, 57, 255),
-    (199, 100, 0),
-    (72, 0, 118),
-    (255, 179, 240),
-    (0, 125, 92),
-    (209, 0, 151),
-    (188, 208, 182),
-    (0, 220, 176),
-    (255, 99, 164),
-    (92, 0, 73),
-    (133, 129, 255),
-    (78, 180, 255),
-    (0, 228, 0),
-    (174, 255, 243),
-    (45, 89, 255),
-    (134, 134, 103),
-    (145, 148, 174),
-    (255, 208, 186),
-    (197, 226, 255),
-    (171, 134, 1),
-    (109, 63, 54),
-    (207, 138, 255),
-    (151, 0, 95),
-    (9, 80, 61),
-    (84, 105, 51),
-    (74, 65, 105),
-    (166, 196, 102),
-    (208, 195, 210),
-    (255, 109, 65),
-    (0, 143, 149),
-    (179, 0, 194),
-    (209, 99, 106),
-    (5, 121, 0),
-    (227, 255, 205),
-    (147, 186, 208),
-    (153, 69, 1),
-    (3, 95, 161),
-    (163, 255, 0),
-    (119, 0, 170),
-    (0, 182, 199),
-    (0, 165, 120),
-    (183, 130, 88),
-    (95, 32, 0),
-    (130, 114, 135),
-    (110, 129, 133),
-    (166, 74, 118),
-    (219, 142, 185),
-    (79, 210, 114),
-    (178, 90, 62),
-    (65, 70, 15),
-    (127, 167, 115),
-    (59, 105, 106),
-    (142, 108, 45),
-    (196, 172, 0),
-    (95, 54, 80),
-    (128, 76, 255),
-    (201, 57, 1),
-    (246, 0, 122),
-    (191, 162, 208),
+
+
+# fmt: off
+palette = [ # 来自COCO的80类调色盘
+    (220, 20, 60),(119, 11, 32),(0, 0, 142),(0, 0, 230),(106, 0, 228),
+    (0, 60, 100),(0, 80, 100),(0, 0, 70),(0, 0, 192),(250, 170, 30),
+    (100, 170, 30),(220, 220, 0),(175, 116, 175),(250, 0, 30),(165, 42, 42),
+    (255, 77, 255),(0, 226, 252),(182, 182, 255),(0, 82, 0),(120, 166, 157),
+    (110, 76, 0),(174, 57, 255),(199, 100, 0),(72, 0, 118),(255, 179, 240),
+    (0, 125, 92),(209, 0, 151),(188, 208, 182),(0, 220, 176),(255, 99, 164),
+    (92, 0, 73),(133, 129, 255),(78, 180, 255),(0, 228, 0),(174, 255, 243),
+    (45, 89, 255),(134, 134, 103),(145, 148, 174),(255, 208, 186),(197, 226, 255),
+    (171, 134, 1),(109, 63, 54),(207, 138, 255),(151, 0, 95),(9, 80, 61),
+    (84, 105, 51),(74, 65, 105),(166, 196, 102),(208, 195, 210),(255, 109, 65),
+    (0, 143, 149),(179, 0, 194),(209, 99, 106),(5, 121, 0),(227, 255, 205),
+    (147, 186, 208),(153, 69, 1),(3, 95, 161),(163, 255, 0),(119, 0, 170),
+    (0, 182, 199),(0, 165, 120),(183, 130, 88),(95, 32, 0),(130, 114, 135),
+    (110, 129, 133),(166, 74, 118),(219, 142, 185),(79, 210, 114),(178, 90, 62),
+    (65, 70, 15),(127, 167, 115),(59, 105, 106),(142, 108, 45),(196, 172, 0),
+    (95, 54, 80),(128, 76, 255),(201, 57, 1),(246, 0, 122),(191, 162, 208)
 ]
+# fmt: on
 
 
 # 遍历目录得到目录下的子文件夹
@@ -136,14 +69,9 @@ def checkCOCO(coco_file):
     if "minival" not in coco_file:
         ann_ids = [ann["id"] for anns_per_image in anns for ann in anns_per_image]
         if len(set(ann_ids)) != len(ann_ids):
-            print(
-                f"\n\n\n\033[1;31m Annotation ids in '{coco_file}' are not unique!\033[0m"
-            )
+            print(f"\n\n\n\033[1;31m Annotation ids in '{coco_file}' are not unique!\033[0m")
             result = dict(collections(ann_ids))
-            # print(result)
-            # print([key for key, value in result.items() if value > 1])
             print({key: value for key, value in result.items() if value > 1})
-            print("\n\n\n")
             exit()
 
 
@@ -178,28 +106,24 @@ def shape_to_mask(img_shape, points, shape_type=None, line_width=10, point_size=
     return mask
 
 
-def parse_labelme_ann(imgpath, viz_imgpath, annpath, img_id, bbox_id, task):
+# 保存 labelme 支持的形状类型
+labelme_shape_type = ["circle", "rectangle", "line", "linestrip", "point", "polygon"]
+
+
+def parse_labelme_ann(imgpath, viz_imgpath, annpath, img_id, bbox_id):
     # 读图返回图片信息
     assert os.path.isfile(imgpath), f"图片文件不存在: {imgpath}"
     img = PIL.Image.open(imgpath)
-    width = img.width
-    height = img.height
+    width, height = img.size
     assert width > 0 and height > 0
-    imgs_dict = dict(
-        id=img_id,
-        file_name=imgpath,
-        width=width,
-        height=height,
-    )
+    imgs_dict = dict(id=img_id, file_name=imgpath, width=width, height=height)
     anns_dict = []
-    if task == "val" or not os.path.isfile(annpath):
+    if not os.path.isfile(annpath):
         return imgs_dict, anns_dict
     # 读标签文件
     with open(annpath, "r") as file_in:
         anndata = json.load(file_in)
-    assert (
-        width == anndata["imageWidth"] and height == anndata["imageHeight"]
-    ), f"图片与标签不对应: {imgpath}"
+    assert width == anndata["imageWidth"] and height == anndata["imageHeight"], f"图片与标签不对应: {imgpath}"
     # 遍历形状
     masks = {}  # 用于存储每个实例的掩码
     segmentations = collections.defaultdict(list)  # 用于存储每个实例的分割点坐标
@@ -278,10 +202,11 @@ def parse_labelme_ann(imgpath, viz_imgpath, annpath, img_id, bbox_id, task):
 
 
 def labelme_convert(task):
+    print(f"\n[info] task : {task}...")
     data = dict(categories=[], images=[], annotations=[])
-    # 获取初始索引ID
-    img_id = start_imgs_id
-    bbox_id = start_bbox_id
+    # 初始索引ID
+    img_id = 0
+    bbox_id = 0
     # 遍历 path 下的子文件夹
     path = os.path.join(root_path, task)
     dirs = find_dir(path)
@@ -298,64 +223,45 @@ def labelme_convert(task):
         # 创建 viz 验证图片的文件夹
         if not os.path.isdir(f"{task}_viz/{pre_dir}"):
             os.makedirs(f"{task}_viz/{pre_dir}")
-        # 设置 tqdm 进度条
-        with tqdm(
-            total=len(img_list),  # 迭代总数
-            desc=f"{pre_dir}\t",  # 进度条最前面的描述
-            leave=True,  # 进度条走完是否保留
-            ncols=100,  # 进度条长度
-            colour="CYAN",  # 颜色(BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE)
-        ) as pbar:
-            # 遍历img文件列表
-            for file in img_list:
-                # 获取文件名(带多文件夹的相对路径)
-                file = file.strip()
-                imgpath = f"{task}/{pre_dir}/imgs/{file}"
-                viz_imgpath = f"{task}_viz/{pre_dir}/{file}"
-                annpath = f"{task}/{pre_dir}/{anndir}/{file[:file.rindex('.')]}.json"
-                # 解析 ann 文件
-                imgs, anns = parse_labelme_ann(
-                    imgpath, viz_imgpath, annpath, img_id, bbox_id, task
-                )
-                # 更新索引ID
-                img_id += 1
-                bbox_id += len(anns)
-                not_ann_cnt += 1 if len(anns) == 0 else 0
-                # 更新 json_data
-                data["images"].append(imgs)
-                for ann in anns:
-                    data["annotations"].append(ann)
-                # 更新进度条
-                pbar.update(1)
+        # 遍历img文件列表
+        for file in tqdm(img_list, desc=f"{pre_dir}\t", leave=True, ncols=100, colour="CYAN"):
+            # 获取文件名(带多文件夹的相对路径)
+            file = file.strip()
+            imgpath = f"{task}/{pre_dir}/imgs/{file}"
+            viz_imgpath = f"{task}_viz/{pre_dir}/{file}"
+            annpath = f"{task}/{pre_dir}/{anndir}/{file[:file.rindex('.')]}.json"
+            # 解析 ann 文件
+            imgs, anns = parse_labelme_ann(imgpath, viz_imgpath, annpath, img_id, bbox_id)
+            # 更新索引ID
+            img_id += 1
+            bbox_id += len(anns)
+            not_ann_cnt += 1 if len(anns) == 0 else 0
+            # 更新 json_data
+            data["images"].append(imgs)
+            for ann in anns:
+                data["annotations"].append(ann)
         if not_ann_cnt != 0:
-            print(
-                "\033[1;31m",
-                f"[Error] 路径{task}/{pre_dir}中有{not_ann_cnt}张图片不存在标注文件！！\n",
-                "\033[0m",
-            )
+            print(f"\033[1;31m[Error] 路径{task}/{pre_dir}中有{not_ann_cnt}张图片不存在标注文件！！\n\033[0m")
     # 更新 categories 项
     for id, category in enumerate(categories):
-        cat = {"id": id, "name": category, "supercategory": category}
+        cat = dict(id=id, name=category, supercategory=category)
         data["categories"].append(cat)
     # 导出并保存到json文件
     with open(f"./{task}.json", "w") as f:
         json.dump(data, f, indent=4)
     # 检查COCO文件是否正确
     checkCOCO(f"./{task}.json")
-    # 打印数据集中出现的不被允许的标签
-    if len(skip_categories) > 0:
-        print(f"\n\033[1;33m[Warning] 出现但不被允许的标签: \033[0m{skip_categories}")
 
 
 if __name__ == "__main__":
     # 根据建立的文件夹判断要进行哪些任务
     if os.path.isdir(f"{root_path}/train"):
-        print("\n[info] task : train...")
         labelme_convert("train")
     if os.path.isdir(f"{root_path}/test"):
-        print("\n[info] task : test...")
         labelme_convert("test")
     if os.path.isdir(f"{root_path}/val"):
-        print("\n[info] task : val...")
         labelme_convert("val")
+    # 打印数据集中出现的不被允许的标签
+    if len(skip_categories) > 0:
+        print(f"\n\033[1;33m[Warning] 出现但不被允许的标签: \033[0m{skip_categories}")
     print("\nAll process success\n")

@@ -9,91 +9,50 @@ def find_dir(path):
 
 
 # 解析单个 labelme 标注文件(json)
-def parse_labelme(json_data, filename):
-    # 解析
-    img_width = json_data["imageWidth"]
-    img_height = json_data["imageHeight"]
-    # 预定义结果
-    anns = []
+def parse_labelme(json_data):
     # 遍历 shapes
+    anns = []
     shapes = json_data["shapes"]
     for shape in shapes:
         # 检查 shape_type
         shape_type = shape["shape_type"]
-        if shape_type not in ["rectangle", "polygon"]:
-            print("Only 'rectangle' and 'polygon' boxes are supported.")
+        if shape_type != "polygon":
+            print("Only 'polygon' boxes are supported.")
             return {}
         # 读取 points
         points = []
         points_xy = shape["points"]
         for point in points_xy:
-            points.extend([float(x) for x in point])
+            points.extend([int(x) for x in point])
         if len(points) < 8 or len(points) % 2 != 0:
             print(f"Invalid polygon: {json_data}.")
             return {}
-        x_list = points[::2]
-        y_list = points[1::2]
-        # 根据 shape_type 做不同处理
-        quad = []
-        if shape_type == "rectangle":
-            quad = [points[0], points[1], points[2], points[1], points[2], points[3], points[0], points[3]]
-        elif len(points) == 8:
-            quad = points
-        else:
-            x_min, x_max, y_min, y_max = (min(x_list), max(x_list), min(y_list), max(y_list))
-            quad = [x_min, y_min, x_max, y_min, x_max, y_max, x_min, y_max]
-
-        text_label = shape["label"]
-        w = max(x_list) - min(x_list)
-        h = max(y_list) - min(y_list)
-        ann = {
-            "iscrowd": 0 if text_label != "###" else 1,
-            "category_id": 1,
-            "bbox": [min(x_list), min(y_list), w, h],
-            "segmentation": [quad] if shape_type == "rectangle" else [points],
-            "text": text_label,
-        }
+        ann = {"transcription": shape["label"], "points": [points]}
         anns.append(ann)
-
-    return {
-        "file_name": filename,
-        "height": img_height,
-        "width": img_width,
-        "annotations": anns,
-    }
+    return anns
 
 
-def check_ann_file(jsonfile, filename):
-    import cv2
-
+def check_ann_file(annpath, imgpath):
     try:
-        if not os.path.exists(jsonfile):
+        if not os.path.exists(annpath):
             raise FileNotFoundError("file not exists!")
-        with open(jsonfile, "r", encoding="utf-8") as file:
+        with open(annpath, "r", encoding="utf-8") as file:
             data = json.load(file)
         if data["imageData"] != None:
             data["imageData"] = None
             image_name = os.path.basename(data["imagePath"])
             data["imagePath"] = f"../imgs/{image_name}"
-            with open(jsonfile, "w") as file_out:
+            with open(annpath, "w") as file_out:
                 file_out.write(json.dumps(data))
-        result = json.dumps(parse_labelme(data, filename))
-        if len(result) < 30:
+        anns = json.dumps(parse_labelme(data, imgpath))
+        if len(anns) < 30:
             print("标签文件解析错误, 用 labelme 耐心检查是否每个标注都已经连接成封闭图形！！")
-            print(f"解析错误的文件: {jsonfile}")
-            print(f"该文件对应的图片: {filename}")
+            print(f"解析错误的文件: {annpath}")
+            print(f"该文件对应的图片: {imgpath}")
             exit(0)
-        return result
+        return imgpath + '\t' + json.dumps(anns, ensure_ascii=False) + '\n'
     except Exception as e:
-        anns = []
-        img = cv2.imread(filename)
-        result = {
-            "file_name": filename,
-            "height": img.shape[0],
-            "width": img.shape[1],
-            "annotations": anns,
-        }
-        return json.dumps(result)
+        return ""
 
 
 def process(root_path, task):
@@ -113,16 +72,15 @@ def process(root_path, task):
         for file in tqdm(img_list, desc=f"{pre_dir}\t", leave=True, ncols=100, colour="CYAN"):
             # 获取文件名(带多文件夹的相对路径)
             raw_name, extension = os.path.splitext(file)
-            imgname = f"{task}/{pre_dir}/imgs/{raw_name}{extension}"
+            imgpath = f"{task}/{pre_dir}/imgs/{raw_name}{extension}"
             annpath = f"./{task}/{pre_dir}/anns_seg/{raw_name}.json"
             # 解析单个 ann 文件
-            ann = check_ann_file(annpath, imgname)
-            # 更新 anns
-            anns.append(ann)
-
+            ann = check_ann_file(annpath, imgpath)
+            if len(ann) > 10:
+                anns.append(ann)
     # 导出并保存到 txt 文件
     with open(f"{task}.txt", "w") as file:
-        file.write("\n".join(anns))
+        file.write(anns)
 
 
 # 图片文件夹：imgs
