@@ -1,106 +1,69 @@
-#!/usr/bin/env python
-
-from __future__ import print_function
-
-import argparse
-import glob
 import os
-import os.path as osp
-import sys
-
-import imgviz
-import numpy as np
-
+import json
 import labelme
+from tqdm import tqdm
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    parser.add_argument("--input_dir", default="anns", help="input annotated directory")
-    parser.add_argument("--output_dir", default="anns_png", help="output dataset directory")
-    parser.add_argument("--labels", default="./labels.txt", help="labels file")
-    parser.add_argument(
-        "--noviz", help="no visualization", action="store_true"
-    )
-    args = parser.parse_args()
+def find_dir(path):
+    return [item.path for item in os.scandir(path) if item.is_dir()]
 
-    if osp.exists(args.output_dir):
-        print("Output directory already exists:", args.output_dir)
-        sys.exit(1)
-    os.makedirs(args.output_dir)
-    os.makedirs(osp.join(args.output_dir, "JPEGImages"))
-    os.makedirs(osp.join(args.output_dir, "SegmentationClass"))
-    os.makedirs(osp.join(args.output_dir, "SegmentationClassPNG"))
-    if not args.noviz:
-        os.makedirs(
-            osp.join(args.output_dir, "SegmentationClassVisualization")
-        )
-    print("Creating dataset:", args.output_dir)
 
-    class_names = []
-    class_name_to_id = {}
-    for i, line in enumerate(open(args.labels).readlines()):
-        class_id = i - 1  # starts with -1
-        class_name = line.strip()
-        class_name_to_id[class_name] = class_id
-        if class_id == -1:
-            assert class_name == "__ignore__"
-            continue
-        elif class_id == 0:
-            assert class_name == "_background_"
-        class_names.append(class_name)
+def main(root_path, split_ratio):
+    # init class_names
+    class_names = ['__ignore__', '_background_', '0', '1']  # 0: 刻度, 1: 指针
+    class_name_to_id = {name: i - 1 for i, name in enumerate(class_names)}
+    assert class_name_to_id['__ignore__'] == -1
+    assert class_name_to_id['_background_'] == 0
     class_names = tuple(class_names)
-    print("class_names:", class_names)
-    out_class_names_file = osp.join(args.output_dir, "class_names.txt")
-    with open(out_class_names_file, "w") as f:
-        f.writelines("\n".join(class_names))
-    print("Saved class_names:", out_class_names_file)
 
-    for filename in glob.glob(osp.join(args.input_dir, "*.json")):
-        print("Generating dataset from:", filename)
+    # get path
+    imgs_path = os.path.join(root_path, "imgs")
+    anns_path = os.path.join(root_path, "anns_seg")
+    png_path = os.path.join(root_path, "anns_png")
+    tmp_path = os.path.join(png_path, "tempfiletotempusepleasedontchangethisfile.json")
+    assert os.path.isdir(anns_path), "anns_seg directory not exists."
+    assert not os.path.isdir(png_path), "anns_png directory already exists"
 
-        label_file = labelme.LabelFile(filename=filename)
+    # start work
+    with open(os.path.join(root_path, "all_list.txt"), "a") as f:
+        for dir in find_dir(imgs_path):
+            pre_dir = os.path.basename(dir)  # 获取并打印子文件夹名
+            os.makedirs(os.path.join(png_path, pre_dir))
+            imgs_list = [f for f in os.listdir(dir) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+            # 遍历图片列表
+            for file in tqdm(imgs_list, desc=f"{pre_dir}\t", leave=True, ncols=100, colour="CYAN"):
+                raw_name, extension = os.path.splitext(file)
+                imgpath = f"{imgs_path}/{pre_dir}/{raw_name}{extension}"
+                # check ann file
+                annpath = f"{anns_path}/{pre_dir}/{raw_name}.json"
+                assert os.path.isfile(annpath)
+                with open(annpath, "r", encoding="utf-8") as file:
+                    data = json.load(file)
+                    data["imageData"] = None
+                    data["imagePath"] = imgpath
+                    with open(tmp_path, "w") as file_out:
+                        file_out.write(json.dumps(data))
+                # load and save
+                label_file = labelme.LabelFile(filename=tmp_path)
+                img = labelme.utils.img_data_to_arr(label_file.imageData)
+                cls, _ = labelme.utils.shapes_to_label(
+                    img_shape=img.shape,
+                    shapes=label_file.shapes,
+                    label_name_to_value=class_name_to_id,
+                )
+                labelme.utils.lblsave(f"{png_path}/{pre_dir}/{raw_name}.png", cls)
+                f.write(f"{pre_dir}/{raw_name}\n")
+        os.remove(tmp_path)
+    with open(os.path.join(root_path, "all_list.txt"), "r") as f:
+        list_train = f.readlines()
+    list_test = list_train[::split_ratio]
+    with open(os.path.join(root_path, "test.txt"), "a") as file:
+        file.writelines(list_test)
+    del list_train[::split_ratio]
+    with open(os.path.join(root_path, "train.txt"), "a") as file:
+        file.writelines(list_train)
 
-        base = osp.splitext(osp.basename(filename))[0]
-        out_img_file = osp.join(args.output_dir, "JPEGImages", base + ".jpg")
-        out_lbl_file = osp.join(
-            args.output_dir, "SegmentationClass", base + ".npy"
-        )
-        out_png_file = osp.join(
-            args.output_dir, "SegmentationClassPNG", base + ".png"
-        )
-        if not args.noviz:
-            out_viz_file = osp.join(
-                args.output_dir,
-                "SegmentationClassVisualization",
-                base + ".jpg",
-            )
 
-        with open(out_img_file, "wb") as f:
-            f.write(label_file.imageData)
-        img = labelme.utils.img_data_to_arr(label_file.imageData)
-
-        lbl, _ = labelme.utils.shapes_to_label(
-            img_shape=img.shape,
-            shapes=label_file.shapes,
-            label_name_to_value=class_name_to_id,
-        )
-        labelme.utils.lblsave(out_png_file, lbl)
-
-        np.save(out_lbl_file, lbl)
-
-        if not args.noviz:
-            viz = imgviz.label2rgb(
-                lbl,
-                imgviz.rgb2gray(img),
-                font_size=15,
-                label_names=class_names,
-                loc="rb",
-            )
-            imgviz.io.imsave(out_viz_file, viz)
-
-
+# Reference: https://github.com/wkentaro/labelme/blob/main/examples/semantic_segmentation/labelme2voc.py
 if __name__ == "__main__":
-    main()
+    main("D:\\User\\Desktop\\指针第二步labelme\\rename", 20)
