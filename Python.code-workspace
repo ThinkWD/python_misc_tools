@@ -2,6 +2,9 @@
 	"folders": [
 		{
 			"path": "."
+		},
+		{
+			"path": "../../VStreamer/src/preview/webrtcsink/signalling"
 		}
 	],
 	"settings": {}

@@ -66,4 +66,4 @@ def main(root_path, split_ratio):
 
 # Reference: https://github.com/wkentaro/labelme/blob/main/examples/semantic_segmentation/labelme2voc.py
 if __name__ == "__main__":
-    main("D:\\User\\Desktop\\指针第二步labelme\\rename", 20)
+    main(os.getcwd(), 20)
