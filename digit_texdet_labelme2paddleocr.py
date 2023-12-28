@@ -27,14 +27,19 @@ def parse_labelme(json_data):
         if len(points) < 8 or len(points) % 2 != 0:
             print(f"Invalid polygon: {json_data}.")
             return {}
-        ann = {"transcription": shape["label"], "points": [points]}
+        s = []
+        for i in range(0, len(points), 2):
+            b = points[i:i + 2]
+            b = [int(t) for t in b]
+            s.append(b)
+        ann = {"transcription": shape["label"], "points": s}
         anns.append(ann)
     return anns
 
 
-def check_ann_file(annpath, imgpath):
+def check_ann_file(annpath):
     try:
-        if not os.path.exists(annpath):
+        if not os.path.isfile(annpath):
             raise FileNotFoundError("file not exists!")
         with open(annpath, "r", encoding="utf-8") as file:
             data = json.load(file)
@@ -44,43 +49,34 @@ def check_ann_file(annpath, imgpath):
             data["imagePath"] = f"../imgs/{image_name}"
             with open(annpath, "w") as file_out:
                 file_out.write(json.dumps(data))
-        anns = json.dumps(parse_labelme(data, imgpath))
-        if len(anns) < 30:
-            print("标签文件解析错误, 用 labelme 耐心检查是否每个标注都已经连接成封闭图形！！")
-            print(f"解析错误的文件: {annpath}")
-            print(f"该文件对应的图片: {imgpath}")
-            exit(0)
-        return imgpath + '\t' + json.dumps(anns, ensure_ascii=False) + '\n'
+        return parse_labelme(data)
     except Exception as e:
-        return ""
+        print(f"\n\n{e}\n\n")
+        exit(0)
 
 
 def process(root_path, task):
     print(f"\n[info] start task {task}...")
-    # 创建 mmocr-dbnet 格式的基本结构
-    anns = []
-    # 遍历 root_path 下的子文件夹
-    dirs = find_dir(root_path)
-    for dir in dirs:
-        # 获取并打印子文件夹名
-        pre_dir = os.path.basename(dir)
-        # 获取img文件列表
-        img_path = os.path.join(dir, "imgs")
-        assert os.path.isdir(img_path), f"图片文件夹不存在: {img_path}"
-        img_list = [f for f in os.listdir(img_path) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
-        # 遍历 ann 文件列表
-        for file in tqdm(img_list, desc=f"{pre_dir}\t", leave=True, ncols=100, colour="CYAN"):
-            # 获取文件名(带多文件夹的相对路径)
-            raw_name, extension = os.path.splitext(file)
-            imgpath = f"{task}/{pre_dir}/imgs/{raw_name}{extension}"
-            annpath = f"./{task}/{pre_dir}/anns_seg/{raw_name}.json"
-            # 解析单个 ann 文件
-            ann = check_ann_file(annpath, imgpath)
-            if len(ann) > 10:
-                anns.append(ann)
-    # 导出并保存到 txt 文件
-    with open(f"{task}.txt", "w") as file:
-        file.write(anns)
+    with open(f"./{task}.txt", "w") as ann_file:
+        # 遍历 root_path 下的子文件夹
+        dirs = find_dir(root_path)
+        for dir in dirs:
+            # 获取并打印子文件夹名
+            pre_dir = os.path.basename(dir)
+            # 获取img文件列表
+            img_path = os.path.join(dir, "imgs")
+            assert os.path.isdir(img_path), f"图片文件夹不存在: {img_path}"
+            img_list = [f for f in os.listdir(img_path) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+            # 遍历 ann 文件列表
+            for file in tqdm(img_list, desc=f"{pre_dir}\t", leave=True, ncols=100, colour="CYAN"):
+                # 获取文件名(带多文件夹的相对路径)
+                raw_name, extension = os.path.splitext(file)
+                imgpath = f"{task}/{pre_dir}/imgs/{raw_name}{extension}"
+                annpath = f"./{task}/{pre_dir}/anns_seg/{raw_name}.json"
+                # 解析单个 ann 文件
+                ann = check_ann_file(annpath)
+                ann_file.write(imgpath + '\t' + json.dumps(ann, ensure_ascii=False) + '\n')
+        
 
 
 # 图片文件夹：imgs
