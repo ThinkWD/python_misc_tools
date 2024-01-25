@@ -11,7 +11,7 @@ def find_dir(path):
     return [item.path for item in os.scandir(path) if item.is_dir()]
 
 
-# 判断 rect 是否包含 point. rect: [xmin, ymin, xmax, ymax]
+# 判断点 point 是否在矩形 rect 内部. rect: [xmin, ymin, xmax, ymax]
 def rectangle_include_point(r, p):
     return p[0] >= r[0] and p[0] <= r[2] and p[1] >= r[1] and p[1] <= r[3]
 
@@ -78,24 +78,23 @@ def parse_labelme(json_path, image_width, image_height):
     shape_points = []
     shape_center = []
     for shape in data["shapes"]:
-        # check shape_type
-        assert shape["shape_type"] == "polygon", f"Only 'polygon' boxes are supported."
-        # parse point
-        points = []
-        for point in shape["points"]:
-            points.extend([int(x) for x in point])
-        assert len(points) >= 8 and len(points) % 2 == 0, f"Invalid polygon: {shape['points']}."
-        point = np.array(points).reshape(-1, 2).astype(int)  # 将列表转为 numpy 矩阵
-        # append
-        shape_labels.append(shape["label"])
-        shape_points.append(point)
-        shape_center.append(point.mean(axis=0))
+        if shape["shape_type"] == "polygon":
+            # parse point
+            points = []
+            for point in shape["points"]:
+                points.extend([int(x) for x in point])
+            assert len(points) >= 8 and len(points) % 2 == 0, f"Invalid polygon: {shape['points']}."
+            point = np.array(points).reshape(-1, 2).astype(int)  # 将列表转为 numpy 矩阵
+            # append
+            shape_labels.append(shape["label"])
+            shape_points.append(point)
+            shape_center.append(point.mean(axis=0))
 
     return shape_labels, shape_points, shape_center
 
 
 # 单个图片
-def generate(img_path, xml_path, json_path, save_dir, save_file, keep_ratio):
+def generate(img_path, xml_path, json_path, save_dir, save_file, keep_ratio, format="paddle"):
     # check image
     assert os.path.isfile(img_path), f"图片文件不存在: {img_path}"
     img = PIL.Image.open(img_path)
@@ -114,12 +113,11 @@ def generate(img_path, xml_path, json_path, save_dir, save_file, keep_ratio):
             img_length = max(box_width, box_height)
             offset = np.array([max((img_length - box_width) // 2, 0), max((img_length - box_height) // 2, 0)])
         # generate paddleocr label string
-        box = np.array(box)  # 将框数组转换为 numpy 数组
+        box = np.array(box)  # 将矩形框转换为 numpy 数组
         for i, shape in enumerate(shape_points):
             if not rectangle_include_point(box, shape_center[i]):
                 continue
             # 将多边形约束到矩形范围内
-            box = np.array(box)  # 将矩形框转换为 numpy 数组
             new_shape = shape
             for p in new_shape:
                 p[0] = max(box[0], min(p[0], box[2]))
@@ -127,7 +125,24 @@ def generate(img_path, xml_path, json_path, save_dir, save_file, keep_ratio):
             new_shape = new_shape - box[:2]
             if keep_ratio:
                 new_shape = new_shape + offset
-            anns.append({"transcription": shape_labels[i], "points": new_shape.tolist()})
+
+            if format == "paddle":
+                ann = {"transcription": shape_labels[i], "points": new_shape.tolist()}
+            elif format == "mmlab":
+                ns_tl = new_shape.min(axis=0).tolist()
+                ns_br = new_shape.max(axis=0).tolist()
+                ann = {
+                    "iscrowd": 0,
+                    "category_id": 1,
+                    "bbox": [ns_tl[0], ns_tl[1], ns_br[0] - ns_tl[0], ns_br[1] - ns_tl[1]],
+                    "segmentation": new_shape.reshape(1, -1).tolist(),
+                    "text": shape_labels[i],
+                }
+            else:
+                print("Only support Paddle OCR format and mmlab OCR format")
+                exit()
+
+            anns.append(ann)
         # crop and save crop img
         if len(anns) > 0:
             path = f"{save_file}_{idx}.jpg"
@@ -138,7 +153,17 @@ def generate(img_path, xml_path, json_path, save_dir, save_file, keep_ratio):
                 res.save(os.path.join(save_dir, path))
             else:
                 crop_img.save(os.path.join(save_dir, path))
-            label_string.append(f"{path}\t{json.dumps(anns, ensure_ascii=False)}\n")
+
+            if format == "paddle":
+                result = f"{path}\t{json.dumps(anns, ensure_ascii=False)}\n"
+            elif format == "mmlab":
+                result = {"file_name": path, "height": height, "width": width, "annotations": anns}
+                result = f"{json.dumps(result, ensure_ascii=False)}\n"
+            else:
+                print("Only support Paddle OCR format and mmlab OCR format")
+                exit()
+
+            label_string.append(result)
     return label_string
 
 
