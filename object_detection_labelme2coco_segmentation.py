@@ -13,6 +13,15 @@ import numpy as np
 from tqdm import tqdm
 
 
+##################################################################
+#
+#   此文件用于实例分割数据集转换格式, 从 labelme 多边形标注转为 COCO 格式
+#
+#   COCO 格式用于 实例分割训练, VOC 格式用于 语义分割训练
+#
+##################################################################
+
+
 try:
     import pycocotools.coco
     import pycocotools.mask

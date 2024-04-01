@@ -6,6 +6,15 @@ import PIL.ImageDraw
 from tqdm import tqdm
 
 
+##################################################################
+#
+#   此文件用于语义分割数据集转换格式, 从 labelme 多边形标注转为 VOC 格式, 并生成 paddleseg 训练所需文件
+#
+#   COCO 格式用于 实例分割训练, VOC 格式用于 语义分割训练
+#
+##################################################################
+
+
 def find_dir(path):
     return [item.path for item in os.scandir(path) if item.is_dir()]
 

@@ -2,9 +2,18 @@
 #!/usr/bin/python
 
 import os
-import shutil
 import xml.etree.ElementTree as ET
 from tqdm import tqdm
+
+
+##################################################################
+#
+#   此文件用于批量修改 VOC 数据集中的类名
+#
+#   change_list 中 key 为原类名, value 为目标类名
+#   不需要修改的类也需要写入到 change_list 中, 设置 value 等于 key 即可
+#
+##################################################################
 
 
 change_list = {"D000": "D000", "D001": "D001", "P000": "P000", "P001": "P001"}  # 指针仪表

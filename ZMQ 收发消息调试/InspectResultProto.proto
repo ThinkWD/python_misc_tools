@@ -1,0 +1,40 @@
+syntax = "proto2";
+option java_package="com.newu.robot.probuf";
+option java_outer_classname="InspectResultProto";
+
+message InspectResult {
+  required string MeteragePoint = 1; //测点ID
+  required InspectType type = 2; //检测类型
+  optional int64 DTime = 3; //上报时间
+  optional int64 BeginTime=4; //开始时间
+  optional int64 EndTime=5;   //结束时间
+  optional string HisPlanId= 6; //任务执行记录id
+  optional string InspectTaskID= 7; //任务停车点与测点关联id 
+  repeated string IdentifiedValues = 8; //识别数值
+  repeated bytes RawData = 9; //原始数据，如可见光、红外等
+  repeated double AdjustOffset = 10; //对表位置偏移flag,ShiftHeight,ShiftWidth
+  repeated string IdentifiedValuestr = 11; //识别输出字符串
+
+  enum InspectType {
+	  Depthrecogn =1;//仪表识别
+	  IdentifyMeter = 2; //位置状态识别
+	  PhotoMeter = 3; //  设备外观检查
+	  TakePhoto = 4; //设备外观查看
+	  Temperature = 5; //红外测温
+	  GatherVoice = 6; //声音检测
+	  Thermometry = 7; // 三相测温
+	  Helmet=8;//安全帽检测
+	  Smoke=9;//火焰和烟雾
+	  Waterquality=10;//水质识别
+	  Sling=11;//安全挂绳
+	  JFStat=12;//局部放电检测
+	  AdjustPosition = 13; //对表
+	  InspectStat=14;//任务状态	  
+	  EnvirCollect=15;//环境信息采集
+	  VibrationCollect=16;//振动检测
+	  Drip=17;//跑冒滴漏
+	  Waste=18;//大块垃圾识别
+	  Residue=19;//栅渣识别
+	  MultiMeter=20;//断路器仪表识别
+  }
+}

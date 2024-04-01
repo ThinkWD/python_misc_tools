@@ -9,15 +9,20 @@ import collections
 from tqdm import tqdm
 import xml.etree.ElementTree as ET
 
+
+##################################################################
+#
+#   此文件用于目标检测数据集转换格式, 从 VOC 格式转为 COCO 格式
+#
+##################################################################
+
+
 try:
     import pycocotools.coco
 except ImportError:
     print("Please install pycocotools:\n\n    pip install pycocotools\n")
     sys.exit(1)
 
-# 根目录
-start_imgs_id = 0  # 图片 ID 起始值
-start_bbox_id = 0  # 检测框 ID 起始值
 # 生成的数据集允许的标签列表
 categories = ["D000", "D001", "P000", "P001"]
 
@@ -39,9 +44,7 @@ def checkCOCO(coco_file):
         ann_ids = [ann["id"] for anns_per_image in anns for ann in anns_per_image]
         if len(set(ann_ids)) != len(ann_ids):
             print(f"\n\n\n\033[1;31m Annotation ids in '{coco_file}' are not unique!\033[0m")
-            result = dict(collections(ann_ids))
-            # print(result)
-            # print([key for key, value in result.items() if value > 1])
+            result = dict(collections.Counter(ann_ids))
             print({key: value for key, value in result.items() if value > 1})
             print("\n\n\n")
             exit()
@@ -101,7 +104,7 @@ def parse_labelimg(xml_path, image_width, image_height):
 
 
 # 单个图片
-def parse_image(img_path, xml_path, img_id, bbox_id):
+def parse_image(img_path, xml_path):
     # check image
     assert os.path.isfile(img_path), f"图片文件不存在: {img_path}"
     img = PIL.Image.open(img_path)
@@ -110,15 +113,15 @@ def parse_image(img_path, xml_path, img_id, bbox_id):
     # parse labelimg anns file
     lable_dict, bbox_dict = parse_labelimg(xml_path, width, height)
     # generate anns
-    imgs_dict = dict(id=img_id, file_name=img_path, width=width, height=height)
+    imgs_dict = dict(id=0, file_name=img_path, width=width, height=height)
     anns_dict = []
     for idx, box in enumerate(bbox_dict):
         # 组成一个框的标签
         box_w = box[2] - box[0]
         box_h = box[3] - box[1]
         annotation = dict(
-            id=bbox_id + idx,
-            image_id=img_id,
+            id=0,
+            image_id=0,
             category_id=lable_dict[idx],
             bbox=[box[0], box[1], box_w, box_h],
             segmentation=[],
@@ -129,13 +132,13 @@ def parse_image(img_path, xml_path, img_id, bbox_id):
     return imgs_dict, anns_dict
 
 
-def voc2coco(split, all_reserver=55):
+def voc2coco(split, reserve_no_label=True, all_reserve=55):
     print(f"\n[info] start task...")
     data_train = dict(categories=[], images=[], annotations=[])  # 训练集
     data_test = dict(categories=[], images=[], annotations=[])  # 测试集
     # 初始索引ID
-    train_img_id = start_imgs_id
-    train_bbox_id = start_bbox_id
+    train_img_id = 0
+    train_bbox_id = 0
     test_img_id = 0
     test_bbox_id = 0
     # 遍历脚本所在目录下的子文件夹
@@ -152,26 +155,37 @@ def voc2coco(split, all_reserver=55):
             raw_name, extension = os.path.splitext(file)
             img_path = f"{pre_dir}/imgs/{raw_name}{extension}"
             xml_path = f"{pre_dir}/anns/{raw_name}.xml"
-
-            if split <= 0 or image_list_size < all_reserver or num % split != 0:
-                imgs_dict, anns_dict = parse_image(img_path, xml_path, train_img_id, train_bbox_id)
+            # 解析获取图片和标签字典
+            imgs_dict, anns_dict = parse_image(img_path, xml_path)
+            # 无标注文件计数
+            anns_size = len(anns_dict)
+            not_ann_cnt += 1 if anns_size == 0 else 0
+            if reserve_no_label == False and anns_size <= 0:
+                continue
+            # 将图片和标注添加到训练集
+            if split <= 0 or image_list_size < all_reserve or num % split != 0:
+                imgs_dict["id"] = train_img_id
+                data_train["images"].append(imgs_dict.copy())
+                for idx, ann in enumerate(anns_dict):
+                    ann["image_id"] = train_img_id
+                    ann["id"] = train_bbox_id + idx
+                    data_train["annotations"].append(ann.copy())
                 train_img_id += 1
-                train_bbox_id += len(anns_dict)
-                data_train["images"].append(imgs_dict)
-                for ann in anns_dict:
-                    data_train["annotations"].append(ann)
-
-            if split <= 0 or image_list_size < all_reserver or num % split == 0:
-                imgs_dict, anns_dict = parse_image(img_path, xml_path, test_img_id, test_bbox_id)
+                train_bbox_id += anns_size
+            # 将图片和标注添加到测试集
+            if split <= 0 or image_list_size < all_reserve or num % split == 0:
+                imgs_dict["id"] = test_img_id
+                data_test["images"].append(imgs_dict.copy())
+                for idx, ann in enumerate(anns_dict):
+                    ann["image_id"] = test_img_id
+                    ann["id"] = test_bbox_id + idx
+                    data_test["annotations"].append(ann.copy())
                 test_img_id += 1
-                test_bbox_id += len(anns_dict)
-                data_test["images"].append(imgs_dict)
-                for ann in anns_dict:
-                    data_test["annotations"].append(ann)
-
-            not_ann_cnt += 1 if len(anns_dict) == 0 else 0
+                test_bbox_id += anns_size
         if not_ann_cnt != 0:
             print(f"\033[1;31m[Error] {pre_dir}中有{not_ann_cnt}张图片不存在标注文件\n\033[0m")
+    print(f"\n训练集图片总数: {train_img_id}, 标注总数: {train_bbox_id}\n")
+    print(f"测试集图片总数: {test_img_id}, 标注总数: {test_bbox_id}\n")
     # 导出到文件
     for id, category in enumerate(categories):
         cat = {"id": id, "name": category, "supercategory": category}

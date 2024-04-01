@@ -1,12 +1,17 @@
 import os
 import stat
 import shutil
-from turtle import position
 import imagesize
 from pycocotools.coco import COCO
 from lxml import etree, objectify
 from tqdm import tqdm
-import numpy as np
+
+
+##################################################################
+#
+#   此文件用于目标检测数据集转换格式, 从 COCO 格式转为 VOC 格式
+#
+##################################################################
 
 
 def rm_read_only(tmp):
@@ -91,9 +96,7 @@ def coco2voc(annfile, outdir):
                 E.pose("Unspecified"),
                 E.truncated("0"),
                 E.difficult(0),
-                E.bndbox(
-                    E.xmin(obj[1]), E.ymin(obj[2]), E.xmax(obj[3]), E.ymax(obj[4])
-                ),
+                E.bndbox(E.xmin(obj[1]), E.ymin(obj[2]), E.xmax(obj[3]), E.ymax(obj[4])),
             )
             anno_tree.append(anno_tree2)
         etree.ElementTree(anno_tree).write(annopath, pretty_print=True)

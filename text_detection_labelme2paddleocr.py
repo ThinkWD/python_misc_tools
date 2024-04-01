@@ -3,6 +3,13 @@ import json
 from tqdm import tqdm
 
 
+##################################################################
+#
+#   此文件被 text_detection_label2ocr.py 取代, 将在未来删除
+#
+##################################################################
+
+
 # 遍历目录得到目录下的子文件夹
 def find_dir(path):
     return [item.path for item in os.scandir(path) if item.is_dir()]
@@ -29,7 +36,7 @@ def parse_labelme(json_data):
             return {}
         s = []
         for i in range(0, len(points), 2):
-            b = points[i:i + 2]
+            b = points[i : i + 2]
             b = [int(t) for t in b]
             s.append(b)
         ann = {"transcription": shape["label"], "points": s}
@@ -76,7 +83,6 @@ def process(root_path, task):
                 # 解析单个 ann 文件
                 ann = check_ann_file(annpath)
                 ann_file.write(imgpath + '\t' + json.dumps(ann, ensure_ascii=False) + '\n')
-        
 
 
 # 图片文件夹：imgs

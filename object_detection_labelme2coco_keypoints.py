@@ -8,6 +8,13 @@ import collections
 import xml.etree.ElementTree as ET
 from tqdm import tqdm
 
+
+##################################################################
+#
+#   此文件用于关键点检测数据集转换格式, 从 labelme 多边形标注转为 COCO 格式, 用于关键点检测训练
+#
+##################################################################
+
 try:
     import pycocotools.coco
 except ImportError:

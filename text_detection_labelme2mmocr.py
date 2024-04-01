@@ -3,6 +3,13 @@ import json
 from tqdm import tqdm
 
 
+##################################################################
+#
+#   此文件被 text_detection_label2ocr.py 取代, 将在未来删除
+#
+##################################################################
+
+
 # 遍历目录得到目录下的子文件夹
 def find_dir(path):
     return [item.path for item in os.scandir(path) if item.is_dir()]

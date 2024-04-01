@@ -4,6 +4,15 @@ import labelme
 from tqdm import tqdm
 
 
+##################################################################
+#
+#   此文件用于语义分割数据集转换格式, 从 labelme 多边形标注转为 VOC 格式, 并生成 mmseg 训练所需文件
+#
+#   COCO 格式用于 实例分割训练, VOC 格式用于 语义分割训练
+#
+##################################################################
+
+
 def find_dir(path):
     return [item.path for item in os.scandir(path) if item.is_dir()]
 
@@ -20,7 +29,6 @@ def main(root_path, split_ratio):
     imgs_path = os.path.join(root_path, "imgs")
     anns_path = os.path.join(root_path, "anns_seg")
     png_path = os.path.join(root_path, "anns_png")
-    tmp_path = os.path.join(png_path, "tempfiletotempusepleasedontchangethisfile.json")
     assert os.path.isdir(anns_path), "anns_seg directory not exists."
     assert not os.path.isdir(png_path), "anns_png directory already exists"
 
@@ -37,14 +45,17 @@ def main(root_path, split_ratio):
                 # check ann file
                 annpath = f"{anns_path}/{pre_dir}/{raw_name}.json"
                 assert os.path.isfile(annpath)
-                with open(annpath, "r", encoding="utf-8") as file:
+                # parse ann file
+                with open(annpath, "r+", encoding="utf-8") as file:
                     data = json.load(file)
                     data["imageData"] = None
-                    data["imagePath"] = imgpath
-                    with open(tmp_path, "w") as file_out:
-                        file_out.write(json.dumps(data))
+                    data["imagePath"] = f"../../imgs/{pre_dir}/{raw_name}{extension}"
+                    # 保存修改后的文件
+                    file.seek(0)
+                    file.truncate()
+                    file.write(json.dumps(data))
                 # load and save
-                label_file = labelme.LabelFile(filename=tmp_path)
+                label_file = labelme.LabelFile(filename=annpath)
                 img = labelme.utils.img_data_to_arr(label_file.imageData)
                 cls, _ = labelme.utils.shapes_to_label(
                     img_shape=img.shape,
@@ -53,7 +64,6 @@ def main(root_path, split_ratio):
                 )
                 labelme.utils.lblsave(f"{png_path}/{pre_dir}/{raw_name}.png", cls)
                 f.write(f"{pre_dir}/{raw_name}\n")
-        os.remove(tmp_path)
     with open(os.path.join(root_path, "all_list.txt"), "r") as f:
         list_train = f.readlines()
     list_test = list_train[::split_ratio]

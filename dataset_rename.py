@@ -3,6 +3,16 @@ import json
 import shutil
 from tqdm import tqdm
 
+##################################################################
+#
+#   此文件用于批量重命名数据集, 命名由 offset 开始递增.
+#
+#   ./imgs      --> ./rename/imgs
+#   ./anns      --> ./rename/anns
+#   ./anns_seg  --> ./rename/anns_seg
+#
+##################################################################
+
 
 offset = 0
 
