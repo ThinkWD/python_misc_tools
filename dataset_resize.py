@@ -24,10 +24,10 @@ def getXmlValue(root, name, length):
     XmlValue = root.findall(name)
     # 检查取出的值长度是否符合预期; 0 不检查
     if len(XmlValue) == 0:
-        raise NotImplementedError(f"Can not find {name} in {root.tag}.")
+        raise Exception(f"Can not find {name} in {root.tag}.")
     if length > 0:
         if len(XmlValue) != length:
-            raise NotImplementedError("The size of %s is supposed to be %d, but is %d." % (name, length, len(XmlValue)))
+            raise Exception("The size of %s is supposed to be %d, but is %d." % (name, length, len(XmlValue)))
         if length == 1:
             XmlValue = XmlValue[0]
     return XmlValue
@@ -52,20 +52,19 @@ def scale_det(xmlpath, savepath, scalerate, offset_x, offset_y):
     try:
         tree = ET.parse(xmlpath)  # 打开文件
         root = tree.getroot()  # 获取根节点
-    except Exception:
-        print(f"Failed to parse XML file: {xmlpath}")
-        exit()
-    for obj in getXmlValue(root, "object", 0):
-        bndbox = getXmlValue(obj, "bndbox", 1)
-        xmin = getXmlValue(bndbox, "xmin", 1)
-        xmin.text = str(int(float(xmin.text) * scalerate + offset_x))
-        ymin = getXmlValue(bndbox, "ymin", 1)
-        ymin.text = str(int(float(ymin.text) * scalerate + offset_y))
-        xmax = getXmlValue(bndbox, "xmax", 1)
-        xmax.text = str(int(float(xmax.text) * scalerate + offset_x))
-        ymax = getXmlValue(bndbox, "ymax", 1)
-        ymax.text = str(int(float(ymax.text) * scalerate + offset_y))
-    tree.write(savepath)
+        for obj in getXmlValue(root, "object", 0):
+            bndbox = getXmlValue(obj, "bndbox", 1)
+            xmin = getXmlValue(bndbox, "xmin", 1)
+            xmin.text = str(int(float(xmin.text) * scalerate + offset_x))
+            ymin = getXmlValue(bndbox, "ymin", 1)
+            ymin.text = str(int(float(ymin.text) * scalerate + offset_y))
+            xmax = getXmlValue(bndbox, "xmax", 1)
+            xmax.text = str(int(float(xmax.text) * scalerate + offset_x))
+            ymax = getXmlValue(bndbox, "ymax", 1)
+            ymax.text = str(int(float(ymax.text) * scalerate + offset_y))
+        tree.write(savepath)
+    except Exception as e:
+        raise Exception(f"Failed to parse XML file: {xmlpath}, {e}")
 
 
 def scale_seg(jsonpath, savepath, relative_path, scalerate, offset_x, offset_y):

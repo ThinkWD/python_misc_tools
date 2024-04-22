@@ -56,10 +56,10 @@ def getXmlValue(root, name, length):
     XmlValue = root.findall(name)
     # 检查取出的值长度是否符合预期; 0 不检查
     if len(XmlValue) == 0:
-        raise NotImplementedError(f"Can not find {name} in {root.tag}.")
+        raise Exception(f"Can not find {name} in {root.tag}.")
     if length > 0:
         if len(XmlValue) != length:
-            raise NotImplementedError("The size of %s is supposed to be %d, but is %d." % (name, length, len(XmlValue)))
+            raise Exception("The size of %s is supposed to be %d, but is %d." % (name, length, len(XmlValue)))
         if length == 1:
             XmlValue = XmlValue[0]
     return XmlValue
@@ -73,33 +73,32 @@ def parse_labelimg(xml_path, image_width, image_height):
     try:
         tree = ET.parse(xml_path)  # 打开文件
         root = tree.getroot()  # 获取根节点
-    except Exception:
-        print(f"Failed to parse XML file: {xml_path}")
-        exit()
-    # 验证图片与标签是否对应
-    imgsize = getXmlValue(root, "size", 1)
-    assert image_width == int(getXmlValue(imgsize, "width", 1).text), f"图片与标签不对应: {xml_path}"
-    assert image_height == int(getXmlValue(imgsize, "height", 1).text), f"图片与标签不对应: {xml_path}"
-    # 提取框信息
-    lable_dict = []
-    bbox_dict = []
-    for obj in getXmlValue(root, "object", 0):
-        # 取出 category
-        category = getXmlValue(obj, "name", 1).text
-        # 检查 category 是否在允许列表中
-        if category not in categories:
-            skip_categories.add(category)
-            continue
-        category_id = categories.index(category)  # 得到 category_id
-        # 取出框
-        bndbox = getXmlValue(obj, "bndbox", 1)
-        xmin = int(float(getXmlValue(bndbox, "xmin", 1).text) - 1)
-        ymin = int(float(getXmlValue(bndbox, "ymin", 1).text) - 1)
-        xmax = int(float(getXmlValue(bndbox, "xmax", 1).text))
-        ymax = int(float(getXmlValue(bndbox, "ymax", 1).text))
-        assert xmax > xmin and ymax > ymin and xmax <= image_width and ymax <= image_height, f"{xml_path}"
-        lable_dict.append(category_id)
-        bbox_dict.append([xmin, ymin, xmax, ymax])
+        # 验证图片与标签是否对应
+        imgsize = getXmlValue(root, "size", 1)
+        assert image_width == int(getXmlValue(imgsize, "width", 1).text), f"图片与标签不对应: {xml_path}"
+        assert image_height == int(getXmlValue(imgsize, "height", 1).text), f"图片与标签不对应: {xml_path}"
+        # 提取框信息
+        lable_dict = []
+        bbox_dict = []
+        for obj in getXmlValue(root, "object", 0):
+            # 取出 category
+            category = getXmlValue(obj, "name", 1).text
+            # 检查 category 是否在允许列表中
+            if category not in categories:
+                skip_categories.add(category)
+                continue
+            category_id = categories.index(category)  # 得到 category_id
+            # 取出框
+            bndbox = getXmlValue(obj, "bndbox", 1)
+            xmin = int(float(getXmlValue(bndbox, "xmin", 1).text) - 1)
+            ymin = int(float(getXmlValue(bndbox, "ymin", 1).text) - 1)
+            xmax = int(float(getXmlValue(bndbox, "xmax", 1).text))
+            ymax = int(float(getXmlValue(bndbox, "ymax", 1).text))
+            assert xmax > xmin and ymax > ymin and xmax <= image_width and ymax <= image_height, f"{xml_path}"
+            lable_dict.append(category_id)
+            bbox_dict.append([xmin, ymin, xmax, ymax])
+    except Exception as e:
+        raise Exception(f"Failed to parse XML file: {xml_path}, {e}")
     return lable_dict, bbox_dict
 
 
