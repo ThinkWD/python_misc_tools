@@ -78,10 +78,9 @@ def checkCOCO(coco_file):
     if "minival" not in coco_file:
         ann_ids = [ann["id"] for anns_per_image in anns for ann in anns_per_image]
         if len(set(ann_ids)) != len(ann_ids):
-            print(f"\n\n\n\033[1;31m Annotation ids in '{coco_file}' are not unique!\033[0m")
             result = dict(collections(ann_ids))
-            print({key: value for key, value in result.items() if value > 1})
-            exit()
+            duplicate_items = {key: value for key, value in result.items() if value > 1}
+            raise Exception(f"Annotation ids in '{coco_file}' are not unique! duplicate items:\n{duplicate_items}")
 
 
 # shape_to_mask

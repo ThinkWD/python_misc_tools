@@ -26,13 +26,9 @@ def rectangle_include_point(r, p):
     return p[0] >= r[0] and p[0] <= r[2] and p[1] >= r[1] and p[1] <= r[3]
 
 
-# 取出 xml 内容 (length 预期长度，为 0 则不检查)
+# 取出 xml 内容 (length 预期长度, 为 0 则不检查)
 def getXmlValue(root, name, length):
-    # root为xml文件的根节点，name是子节点，作用为取出子节点内容
     XmlValue = root.findall(name)
-    # 检查取出的值长度是否符合预期; 0 不检查
-    if len(XmlValue) == 0:
-        raise Exception(f"Can not find {name} in {root.tag}.")
     if length > 0:
         if len(XmlValue) != length:
             raise Exception("The size of %s is supposed to be %d, but is %d." % (name, length, len(XmlValue)))
@@ -43,8 +39,8 @@ def getXmlValue(root, name, length):
 
 # 解析单个 labelimg 标注文件(xml)
 def parse_labelimg(xml_path, image_width, image_height):
-    assert os.path.isfile(xml_path), f"标签文件不存在: {xml_path}"
-    # 读标签文件
+    if not os.path.isfile(xml_path):
+        return []
     try:
         tree = ET.parse(xml_path)  # 打开文件
         root = tree.getroot()  # 获取根节点
@@ -69,7 +65,8 @@ def parse_labelimg(xml_path, image_width, image_height):
 
 # 解析单个 labelme 标注文件(json)
 def parse_labelme(json_path, image_width, image_height):
-    assert os.path.isfile(json_path), f"标签文件不存在: {json_path}"
+    if not os.path.isfile(json_path):
+        return [], [], []
     # 处理标注文件中的多余数据
     with open(json_path, "r", encoding="utf-8") as file:
         data = json.load(file)
@@ -149,8 +146,7 @@ def generate_format_label_string(labels, shapes, width, height, relative_path, f
         result = f"{json.dumps(result, ensure_ascii=False)}\n"
 
     else:
-        print("Only support Paddle OCR format and mmlab OCR format")
-        exit()
+        raise Exception("Only support Paddle OCR format and mmlab OCR format")
 
     return result
 

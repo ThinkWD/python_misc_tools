@@ -18,13 +18,9 @@ import xml.etree.ElementTree as ET
 ##################################################################
 
 
-# 取出 xml 内容 (length 预期长度，为 0 则不检查)
+# 取出 xml 内容 (length 预期长度, 为 0 则不检查)
 def getXmlValue(root, name, length):
-    # root为xml文件的根节点，name是子节点，作用为取出子节点内容
     XmlValue = root.findall(name)
-    # 检查取出的值长度是否符合预期; 0 不检查
-    if len(XmlValue) == 0:
-        raise Exception(f"Can not find {name} in {root.tag}.")
     if length > 0:
         if len(XmlValue) != length:
             raise Exception("The size of %s is supposed to be %d, but is %d." % (name, length, len(XmlValue)))

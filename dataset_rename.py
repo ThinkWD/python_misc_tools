@@ -43,10 +43,11 @@ def rename(root_path):
         if os.path.isfile(seg_file):
             with open(seg_file, "r", encoding='utf-8') as file_in:
                 json_data = json.load(file_in)
-            json_data["imageData"] = None
-            json_data["imagePath"] = f"../imgs/{out_name}{extension}"
-            with open(f"{root_path}/rename/anns_seg/{out_name}.json", "w", encoding='utf-8') as file_out:
-                json.dump(json_data, file_out, indent=4)
+            if len(json_data["shapes"]) > 0:
+                json_data["imageData"] = None
+                json_data["imagePath"] = f"../imgs/{out_name}{extension}"
+                with open(f"{root_path}/rename/anns_seg/{out_name}.json", "w", encoding='utf-8') as file_out:
+                    json.dump(json_data, file_out, indent=4)
 
 
 def main():

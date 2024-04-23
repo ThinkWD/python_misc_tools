@@ -44,22 +44,14 @@ def checkCOCO(coco_file):
     if "minival" not in coco_file:
         ann_ids = [ann["id"] for anns_per_image in anns for ann in anns_per_image]
         if len(set(ann_ids)) != len(ann_ids):
-            print(f"\n\n\n\033[1;31m Annotation ids in '{coco_file}' are not unique!\033[0m")
             result = dict(collections(ann_ids))
-            # print(result)
-            # print([key for key, value in result.items() if value > 1])
-            print({key: value for key, value in result.items() if value > 1})
-            print("\n\n\n")
-            exit()
+            duplicate_items = {key: value for key, value in result.items() if value > 1}
+            raise Exception(f"Annotation ids in '{coco_file}' are not unique! duplicate items:\n{duplicate_items}")
 
 
-# 取出 xml 内容 (length 预期长度，为 0 则不检查)
+# 取出 xml 内容 (length 预期长度, 为 0 则不检查)
 def getXmlValue(root, name, length):
-    # root为xml文件的根节点，name是子节点，作用为取出子节点内容
     XmlValue = root.findall(name)
-    # 检查取出的值长度是否符合预期; 0 不检查
-    if len(XmlValue) == 0:
-        raise Exception(f"Can not find {name} in {root.tag}.")
     if length > 0:
         if len(XmlValue) != length:
             raise Exception("The size of %s is supposed to be %d, but is %d." % (name, length, len(XmlValue)))
