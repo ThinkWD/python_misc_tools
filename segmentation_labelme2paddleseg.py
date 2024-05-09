@@ -1,5 +1,6 @@
 import os
 import json
+import math
 import numpy as np
 import PIL.Image
 import PIL.ImageDraw
@@ -33,23 +34,50 @@ def get_color_map_list(num_classes):
     return color_map
 
 
-def shape2mask(img_size, points):
-    label_mask = PIL.Image.fromarray(np.zeros(img_size[:2], dtype=np.uint8))
-    image_draw = PIL.ImageDraw.Draw(label_mask)
-    points_list = [tuple(point) for point in points]
-    assert len(points_list) > 2, 'Polygon must have points more than 2'
-    image_draw.polygon(xy=points_list, outline=1, fill=1)
-    return np.array(label_mask, dtype=bool)
+# 保存 labelme 支持的形状类型
+labelme_shape_type = ["circle", "rectangle", "line", "linestrip", "point", "polygon"]
+
+
+# shape_to_mask
+def shape_to_mask(img_shape, points, shape_type=None, line_width=10, point_size=5):
+    mask = np.zeros(img_shape[:2], dtype=np.uint8)
+    mask = PIL.Image.fromarray(mask)
+    draw = PIL.ImageDraw.Draw(mask)
+    xy = [tuple(point) for point in points]
+    if shape_type == "circle":
+        assert len(xy) == 2, "Shape of shape_type=circle must have 2 points"
+        (cx, cy), (px, py) = xy
+        d = math.sqrt((cx - px) ** 2 + (cy - py) ** 2)
+        draw.ellipse([cx - d, cy - d, cx + d, cy + d], outline=1, fill=1)
+    elif shape_type == "rectangle":
+        assert len(xy) == 2, "Shape of shape_type=rectangle must have 2 points"
+        draw.rectangle(xy, outline=1, fill=1)
+    elif shape_type == "line":
+        assert len(xy) == 2, "Shape of shape_type=line must have 2 points"
+        draw.line(xy=xy, fill=1, width=line_width)
+    elif shape_type == "linestrip":
+        draw.line(xy=xy, fill=1, width=line_width)
+    elif shape_type == "point":
+        assert len(xy) == 1, "Shape of shape_type=point must have 1 points"
+        cx, cy = xy[0]
+        r = point_size
+        draw.ellipse([cx - r, cy - r, cx + r, cy + r], outline=1, fill=1)
+    else:
+        assert len(xy) > 2, "Polygon must have points more than 2"
+        draw.polygon(xy=xy, outline=1, fill=1)
+    mask = np.array(mask, dtype=bool)
+    return mask
 
 
 def shape2label(img_size, shapes, class_name_mapping):
     label = np.zeros(img_size[:2], dtype=np.int32)
     for shape in shapes:
+        shape_type = shape.get('shape_type', None)
+        assert shape_type in labelme_shape_type, f"不支持的形状: {shape_type}"
         points = shape['points']
         class_name = shape['label']
-        shape_type = shape.get('shape_type', None)
         class_id = class_name_mapping[class_name]
-        label_mask = shape2mask(img_size[:2], points)
+        label_mask = shape_to_mask(img_size[:2], points, shape_type)
         label[label_mask] = class_id
     return label
 
