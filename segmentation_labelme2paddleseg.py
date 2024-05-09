@@ -84,7 +84,7 @@ def shape2label(img_size, shapes, class_name_mapping):
 
 def main(root_path, split_ratio):
     # init class_names
-    class_names = ['__ignore__', '_background_', '0', '1']  # 0: 刻度, 1: 指针
+    class_names = ['__ignore__', '_background_', 'belt_L', 'belt_R', 'roller_L', 'roller_R']  # 0: 刻度, 1: 指针
     class_name_to_id = {name: i - 1 for i, name in enumerate(class_names)}
     assert class_name_to_id['__ignore__'] == -1
     assert class_name_to_id['_background_'] == 0
@@ -146,4 +146,4 @@ def main(root_path, split_ratio):
 
 # Reference: https://github.com/wkentaro/labelme/blob/main/examples/semantic_segmentation/labelme2voc.py
 if __name__ == "__main__":
-    main(os.getcwd(), 20)
+    main(os.getcwd(), 5)
