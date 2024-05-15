@@ -84,18 +84,19 @@ def parse_labelme(json_path, image_width, image_height):
     shape_points = []
     shape_center = []
     for shape in data["shapes"]:
-        if shape["shape_type"] == "polygon":
-            # parse point
-            points = []
-            for point in shape["points"]:
-                points.extend([int(x) for x in point])
-            assert len(points) >= 8 and len(points) % 2 == 0, f"Invalid polygon: {shape['points']}."
-            point = np.array(points).reshape(-1, 2).astype(int)  # 将列表转为 numpy 矩阵
-            # append
-            shape_labels.append(shape["label"])
-            shape_points.append(point)
-            shape_center.append(point.mean(axis=0))
-
+        points = np.array(shape["points"])
+        points = np.rint(points).astype(int)  # float 转 int 四舍五入
+        assert points.shape[1] == 2, f"Invalid shape. check: {json_path}"
+        if shape["shape_type"] == "rectangle":
+            assert points.shape[0] == 2, f"Invalid rectangle. check: {json_path}"
+            min = points.min(axis=0)
+            max = points.max(axis=0)
+            points = np.array([min, [max[0], min[1]], max, [min[0], max[1]]])
+        elif shape["shape_type"] != "polygon":
+            raise Exception(f"Only support polygon and rectangle. check: {json_path}")
+        shape_labels.append(shape["label"])
+        shape_points.append(points)
+        shape_center.append(points.mean(axis=0))
     return shape_labels, shape_points, shape_center
 
 
@@ -256,5 +257,5 @@ def process(root_path, save_dir, split, keep_ratio):
 
 
 if __name__ == "__main__":
-    process(os.getcwd(), "dataset", 10, True)
+    process(os.getcwd(), "dataset", 5, True)
     print("\nAll process success\n")
