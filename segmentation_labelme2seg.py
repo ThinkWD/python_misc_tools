@@ -82,7 +82,7 @@ def shape2label(img_size, shapes, class_name_mapping):
     return label
 
 
-def main(root_path, split_ratio):
+def main(root_path, split_ratio, format="paddle"):
     # init class_names
     class_names = ['__ignore__', '_background_', 'belt_L', 'belt_R', 'roller_L', 'roller_R']  # 0: 刻度, 1: 指针
     class_name_to_id = {name: i - 1 for i, name in enumerate(class_names)}
@@ -127,13 +127,16 @@ def main(root_path, split_ratio):
                 mask = shape2label([height, width], data['shapes'], class_name_to_id)
                 # Assume label ranges [0, 255] for uint8,
                 if mask.min() < 0 or mask.max() > 255:
-                    raise Exception(
-                        f'[{annpath}] Cannot save the pixel-wise class label as PNG. Please consider using the .npy format.'
-                    )
+                    raise Exception(f'[{annpath}] Cannot save the pixel-wise class label as PNG.')
                 lbl_pil = PIL.Image.fromarray(mask.astype(np.uint8), mode='P')
                 lbl_pil.putpalette(color_map)
                 lbl_pil.save(f"{png_path}/{pre_dir}/{raw_name}.png")
-                f.write(f"imgs/{pre_dir}/{raw_name}{extension} anns_png/{pre_dir}/{raw_name}.png\n")
+                if format == "paddle":
+                    f.write(f"imgs/{pre_dir}/{raw_name}{extension} anns_png/{pre_dir}/{raw_name}.png\n")
+                elif format == "mmlab":
+                    f.write(f"{pre_dir}/{raw_name}\n")
+                else:
+                    raise Exception("Only support Paddle OCR format and mmlab OCR format")
     with open(os.path.join(root_path, "all_list.txt"), "r") as f:
         list_train = f.readlines()
     list_test = list_train[::split_ratio]
