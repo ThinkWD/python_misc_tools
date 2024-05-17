@@ -84,8 +84,7 @@ def parse_labelme(json_path, image_width, image_height):
     shape_points = []
     shape_center = []
     for shape in data["shapes"]:
-        points = np.array(shape["points"])
-        points = np.rint(points).astype(int)  # float 转 int 四舍五入
+        points = np.array(shape["points"]).astype(float)
         assert points.shape[1] == 2, f"Invalid shape. check: {json_path}"
         if shape["shape_type"] == "rectangle":
             assert points.shape[0] == 2, f"Invalid rectangle. check: {json_path}"
@@ -204,9 +203,11 @@ def generate(img_path, xml_path, json_path, keep_ratio, save_root, save_relative
             crop_img = res.resize((box_width, box_height), PIL.Image.BILINEAR)
         crop_img.save(f"{save_path}/{raw_name}.jpg")
 
+        # 四舍五入 float 转 int
+        for i in range(len(shapes)):
+            shapes[i] = np.rint(shapes[i]).astype(int)
         # generate anns label string
         label_string.append(generate_format_label_string(shape_labels, shapes, box_width, box_height, rel_path))
-
         # generate labelme check file
         generate_labelme_check_file(shapes, box_width, box_height, save_path, raw_name)
 
