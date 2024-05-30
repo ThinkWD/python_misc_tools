@@ -7,9 +7,10 @@
 
 ### Before training
 #   1. replace ${task_name} and ${config_name}
-#   2. set num_classes
-#   3. set batch_size
-#   4. set base_lr
+#   2. set _dataset_root
+#   3. set _num_classes
+#   4. set _batch_size
+#   5. set _learning_rate
 
 ### Start training
 #   python3 -m paddle.distributed.launch tools/train.py -c data/${task_name}/${config_name}.yml
@@ -18,21 +19,21 @@
 #   python3 tools/export_model.py -c data/${task_name}/${config_name}.yml -o Global.pretrained_model=workspace/${task_name}/${config_name}/best_model
 
 ########################################################################################
-## dataset space
-datasetspace: &datasetspace data/${task_name}/src
-train_list_path: &train_list_path data/${task_name}/src/train.txt"
-test_list_path: &test_list_path data/${task_name}/src/test.txt"
+## dataset root
+_dataset_root: &_dataset_root data/${task_name}/src
+_label_path_train: &_label_path_train data/${task_name}/src/train.txt"
+_label_path_test: &_label_path_test data/${task_name}/src/test.txt"
 
 ## number of classes
-num_classes: &num_classes 2
+_num_classes: &_num_classes 2
 
 ## train batch size
-batch_size: &batch_size 64
+_batch_size: &batch_size 64
 
 ## base learning rate
 # new_lr = (default_base_lr * batch_size * num_gpus) / (default_batch_size * default_num_gpus)
 # new_lr = (0.01 * batch_size * num_gpus) / (64 * default_num_gpus) ==> unknown default_num_gpus
-base_learning_rate: &base_learning_rate 0.01
+_learning_rate: &_learning_rate 0.01
 
 #### >>>>> global <<<<< ######################################
 Global:
@@ -56,7 +57,7 @@ Arch:
   name: "PPLCNet_x1_0"
   pretrained: True
   use_ssld: True
-  class_num: *num_classes
+  class_num: *_num_classes
 
 #### >>>>> optimizer <<<<< ######################################
 Loss:
@@ -75,7 +76,7 @@ Optimizer:
   momentum: 0.9
   lr:
     name: Cosine
-    learning_rate: *base_learning_rate
+    learning_rate: *_learning_rate
     warmup_epoch: 5
   regularizer:
     name: 'L2'
@@ -86,8 +87,8 @@ DataLoader:
   Train:
     dataset:
       name: MultiLabelDataset
-      image_root: *datasetspace
-      cls_label_path: *train_list_path
+      image_root: *_dataset_root
+      cls_label_path: *_label_path_train
       label_ratio: True
       transform_ops:
         - DecodeImage:
@@ -123,7 +124,7 @@ DataLoader:
             mode: pixel
     sampler:
       name: DistributedBatchSampler
-      batch_size: *batch_size
+      batch_size: *_batch_size
       drop_last: True
       shuffle: True
     loader:
@@ -132,8 +133,8 @@ DataLoader:
   Eval:
     dataset:
       name: MultiLabelDataset
-      image_root: *datasetspace
-      cls_label_path: *test_list_path
+      image_root: *_dataset_root
+      cls_label_path: *_label_path_test
       label_ratio: True
       transform_ops:
         - DecodeImage:
@@ -148,7 +149,7 @@ DataLoader:
             order: ''
     sampler:
       name: DistributedBatchSampler
-      batch_size: *batch_size
+      batch_size: *_batch_size
       drop_last: False
       shuffle: False
     loader:
