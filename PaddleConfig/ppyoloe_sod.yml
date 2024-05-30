@@ -1,0 +1,97 @@
+#  Repositories : https://github.com/PaddlePaddle/PaddleDetection
+#     Task type : Small Object Detection
+# Preprocessing : object_detection_voc2coco.py
+#   Base config : configs/smalldet/visdrone/ppyoloe_plus_sod_crn_s_80e_visdrone.yml
+#   Information : https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.7/configs/smalldet
+
+### Before training
+#   1. replace ${task_name} and ${config_name}
+#   2. set num_classes
+#   3. set batch_size
+#   4. set base_lr
+
+### Start training
+#   python3 -m paddle.distributed.launch tools/train.py -c data/${task_name}/${config_name}.yml --eval --amp
+
+### Recovery after interruption (without suffix name '.pdparams', '.pdopt', '.pdema')
+#   python3 -m paddle.distributed.launch tools/train.py -c data/${task_name}/${config_name}.yml --eval --amp -r workspace/${config_name}/34
+
+### Export inference model
+#   python3 tools/export_model.py -c data/${task_name}/${config_name}.yml --output_dir workspace/${config_name}
+
+########################################################################################
+_BASE_: [
+  '../../configs/runtime.yml',
+  '../../configs/ppyoloe/_base_/optimizer_80e.yml',
+  '../../configs/ppyoloe/_base_/ppyoloe_plus_crn.yml',
+  '../../configs/ppyoloe/_base_/ppyoloe_plus_reader.yml',
+]
+
+### Base config : configs/ppyoloe/_base_/ppyoloe_plus_reader.yml
+worker_num: 8
+TrainReader:
+  batch_size: 16
+EvalReader:
+  batch_size: 1
+TestReader:
+  batch_size: 1
+  fuse_normalize: True
+
+### Base config : configs/ppyoloe/_base_/optimizer_80e.yml
+# new_lr = (default_base_lr * batch_size * num_gpus) / (default_batch_size * default_num_gpus)
+# new_lr = (0.001 * batch_size * num_gpus) / (8 * 8)
+LearningRate:
+  base_lr: 0.00025
+
+### Base config : configs/datasets/coco_detection.yml
+num_classes: 1
+metric: COCO
+datasetspace: &datasetspace data/${task_name}/src
+TrainDataset:
+  name: COCODataSet
+  image_dir: .
+  anno_path: ./train.json
+  dataset_dir: *datasetspace
+  data_fields: ['image', 'gt_bbox', 'gt_class', 'is_crowd']
+EvalDataset:
+  name: COCODataSet
+  image_dir: .
+  anno_path: ./test.json
+  dataset_dir: *datasetspace
+  allow_empty: true
+TestDataset:
+  name: COCODataSet
+  image_dir: .
+  anno_path: ./test.json
+  dataset_dir: *datasetspace
+
+### Base config : configs/smalldet/visdrone/ppyoloe_plus_sod_crn_s_80e_visdrone.yml
+log_iter: 20
+snapshot_epoch: 5
+weights: workspace/${config_name}/best_model.pdparams
+pretrain_weights: https://bj.bcebos.com/v1/paddledet/models/ppyoloe_plus_crn_s_80e_coco.pdparams
+depth_mult: 0.33
+width_mult: 0.50
+
+CustomCSPPAN:
+  num_layers: 4
+  use_trans: True
+
+PPYOLOEHead:
+  reg_range: [-2,8]
+  static_assigner_epoch: -1
+  static_assigner:
+    name: ATSSAssigner
+    topk: 9
+  assigner:
+    name: TaskAlignedAssigner_CR
+    center_radius: 1
+    topk: 13
+    alpha: 1.0
+    beta: 6.0
+  nms:
+    name: MultiClassNMS
+    nms_top_k: 10000
+    keep_top_k: 500
+    score_threshold: 0.01
+    nms_threshold: 0.6
