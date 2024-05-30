@@ -24,7 +24,7 @@
 ## dataset root
 _dataset_root: &_dataset_root data/${task_name}/src
 _label_path_train: &_label_path_train data/${task_name}/src/train.json
-_label_path_test: &_label_path_test data/${task_name}/src/test.json"
+_label_path_test: &_label_path_test data/${task_name}/src/test.json
 
 ## train batch size
 _batch_size: &_batch_size 16

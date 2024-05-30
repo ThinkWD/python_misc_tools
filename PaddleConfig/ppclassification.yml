@@ -21,8 +21,8 @@
 ########################################################################################
 ## dataset root
 _dataset_root: &_dataset_root data/${task_name}/src
-_label_path_train: &_label_path_train data/${task_name}/src/train.txt"
-_label_path_test: &_label_path_test data/${task_name}/src/test.txt"
+_label_path_train: &_label_path_train data/${task_name}/src/train.txt
+_label_path_test: &_label_path_test data/${task_name}/src/test.txt
 
 ## number of classes
 _num_classes: &_num_classes 2
