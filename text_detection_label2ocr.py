@@ -209,7 +209,7 @@ def generate(img_path, xml_path, json_path, keep_ratio, save_root, save_relative
         # generate anns label string
         label_string.append(generate_format_label_string(shape_labels, shapes, box_width, box_height, rel_path))
         # generate labelme check file
-        generate_labelme_check_file(shapes, box_width, box_height, save_path, raw_name)
+        # generate_labelme_check_file(shapes, box_width, box_height, save_path, raw_name)
 
     return label_string
 
