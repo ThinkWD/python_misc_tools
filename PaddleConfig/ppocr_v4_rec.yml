@@ -1,0 +1,180 @@
+#  Repositories : https://github.com/PaddlePaddle/PaddleOCR
+#     Task type : OCR Text Recognition
+# Preprocessing : text_recognition_dir2ocr.py
+#   Base config : configs/rec/PP-OCRv4/ch_PP-OCRv4_rec_ampO2_ultra.yml
+#   Information : https://github.com/PaddlePaddle/PaddleOCR/blob/main/doc/doc_ch/PP-OCRv4_introduction.md
+#                 https://github.com/PaddlePaddle/PaddleOCR/blob/main/doc/doc_ch/config.md
+
+### Before training
+#   1. replace ${task_name} and ${config_name}
+#   2. set _dataset_root
+#   3. set _batch_size
+#   4. set _learning_rate
+
+### Start training
+#   python3 tools/train.py -c data/${task_name}/${config_name}.yml
+
+### Visual prediction
+#   python3 data/infer_rec.py -c data/${task_name}/${config_name}.yml
+
+### Export inference model
+#   python3 tools/export_model.py -c data/${task_name}/${config_name}.yml -o Global.pretrained_model=workspace/${config_name}/best_accuracy
+
+########################################################################################
+## dataset root
+_dataset_root: &_dataset_root data/${task_name}/src
+_label_path_train: &_label_path_train data/${task_name}/src/train.json
+_label_path_test: &_label_path_test data/${task_name}/src/test.json
+_label_path_dict: &_label_path_dict data/${task_name}/src/dict_file.txt
+
+## train batch size
+_batch_size: &_batch_size 128
+
+## base learning rate
+# new_lr = (default_base_lr * batch_size * num_gpus) / (default_batch_size * default_num_gpus)
+# new_lr = (0.001 * batch_size * num_gpus) / (192 * 8)
+_learning_rate: &_learning_rate 0.0001
+
+#### >>>>> global <<<<< ######################################
+Global:
+  debug: false
+  use_gpu: true
+  epoch_num: 200
+  log_smooth_window: 20
+  print_batch_step: 20
+  save_model_dir: workspace/${config_name}
+  save_epoch_step: 10
+  eval_batch_step: [0, 2000]
+  cal_metric_during_train: true
+  pretrained_model: null # ./checkpoints/en_PP-OCRv4_rec_train/best_accuracy
+  checkpoints:
+  save_inference_dir: workspace/${config_name}/inference
+  use_visualdl: false
+  infer_img: data/${task_name}
+  character_dict_path: *_label_path_dict
+  max_text_length: &max_text_length 25
+  infer_mode: false
+  use_space_char: false
+  distributed: true
+  save_res_path: workspace/${config_name}/val/res.txt
+  use_amp: True
+  amp_level: O1
+
+#### >>>>> optimizer <<<<< ######################################
+Optimizer:
+  name: Adam
+  beta1: 0.9
+  beta2: 0.999
+  lr:
+    name: Cosine
+    learning_rate: *_learning_rate
+    warmup_epoch: 5
+  regularizer:
+    name: L2
+    factor: 3.0e-05
+
+#### >>>>> architecture <<<<< ######################################
+Architecture:
+  model_type: rec
+  algorithm: SVTR_LCNet
+  Transform:
+  Backbone:
+    name: PPLCNetV3
+    scale: 0.95
+  Head:
+    name: MultiHead
+    head_list:
+      - CTCHead:
+          Neck:
+            name: svtr
+            dims: 120
+            depth: 2
+            hidden_dims: 120
+            kernel_size: [1, 3]
+            use_guide: True
+          Head:
+            fc_decay: 0.00001
+      - NRTRHead:
+          nrtr_dim: 384
+          max_text_length: *max_text_length
+
+#### >>>>> loss <<<<< ######################################
+Loss:
+  name: MultiLoss
+  loss_config_list:
+    - CTCLoss:
+    - NRTRLoss:
+
+#### >>>>> PostProcess <<<<< ######################################
+PostProcess:
+  name: CTCLabelDecode
+
+#### >>>>> metric <<<<< ######################################
+Metric:
+  name: RecMetric
+  main_indicator: acc
+
+#### >>>>> dataset <<<<< ######################################
+Train:
+  dataset:
+    name: MultiScaleDataSet
+    ds_width: false
+    data_dir: *_dataset_root
+    ext_op_transform_idx: 1
+    label_file_list: *_label_path_train
+    transforms:
+    - DecodeImage:
+        img_mode: BGR
+        channel_first: false
+    - RecConAug:
+        prob: 0.5
+        ext_data_num: 2
+        image_shape: [48, 320, 3]
+        max_text_length: *max_text_length
+    - RecAug:
+    - MultiLabelEncode:
+        gtc_encode: NRTRLabelEncode
+    - KeepKeys:
+        keep_keys:
+        - image
+        - label_ctc
+        - label_gtc
+        - length
+        - valid_ratio
+  sampler:
+    name: MultiScaleSampler
+    scales: [[320, 32], [320, 48], [320, 64]]
+    first_bs: *_batch_size
+    fix_bs: false
+    divided_factor: [8, 16] # w, h
+    is_training: True
+  loader:
+    shuffle: true
+    batch_size_per_card: *_batch_size
+    drop_last: true
+    num_workers: 16
+Eval:
+  dataset:
+    name: SimpleDataSet
+    data_dir: *_dataset_root
+    label_file_list: *_label_path_test
+    transforms:
+    - DecodeImage:
+        img_mode: BGR
+        channel_first: false
+    - MultiLabelEncode:
+        gtc_encode: NRTRLabelEncode
+    - RecResizeImg:
+        image_shape: [3, 48, 320]
+    - KeepKeys:
+        keep_keys:
+        - image
+        - label_ctc
+        - label_gtc
+        - length
+        - valid_ratio
+  loader:
+    shuffle: false
+    drop_last: false
+    batch_size_per_card: 64
+    num_workers: 16
