@@ -169,13 +169,13 @@ def main(root_path, split_ratio, format="paddle"):
             else:
                 raise Exception("Only support Paddle OCR format and mmlab OCR format")
 
-    with open(os.path.join(root_path, "all_list.txt"), "w") as file:
+    with open(os.path.join(root_path, "all_list.txt"), "w", encoding='utf-8') as file:
         file.writelines(dataset)
     test_data = dataset[::split_ratio]
-    with open(os.path.join(root_path, "test_list.txt"), "w") as file:
+    with open(os.path.join(root_path, "test_list.txt"), "w", encoding='utf-8') as file:
         file.writelines(test_data)
     del dataset[::split_ratio]
-    with open(os.path.join(root_path, "train_list.txt"), "w") as file:
+    with open(os.path.join(root_path, "train_list.txt"), "w", encoding='utf-8') as file:
         file.writelines(dataset)
 
 

@@ -214,47 +214,44 @@ def generate(img_path, xml_path, json_path, keep_ratio, save_root, save_relative
     return label_string
 
 
-def process(root_path, save_dir, split, keep_ratio):
+def process(root_path, save_dir, split_ratio, keep_ratio):
     work_path = os.path.join(root_path, "src")
     save_path = os.path.join(root_path, save_dir)
     assert os.path.isdir(work_path), f"数据集不存在: {work_path}"
     if not os.path.isdir(save_path):
         os.makedirs(save_path)
 
-    print(f"\n[info] start task...")
-    with open(f"{save_path}/all_list.txt", "w", encoding='utf-8') as ann_file:
-        # 遍历 root_path 下的子文件夹
-        dirs = find_dir(work_path)
-        for dir in dirs:
-            # 获取子文件夹名
-            pre_dir = os.path.basename(dir)
-            save_sub_path = f"{save_path}/dataset/{pre_dir}"
-            assert not os.path.isdir(save_sub_path), f"结果文件夹已经存在: {save_sub_path}"
-            os.makedirs(save_sub_path)
-            # 获取img文件列表
-            img_path = os.path.join(dir, "imgs")
-            assert os.path.isdir(img_path), f"图片文件夹不存在: {img_path}"
-            img_list = [f for f in os.listdir(img_path) if f.lower().endswith((".jpg", ".jpeg", ".png"))]
-            # 遍历 ann 文件列表
-            save_relative = f"dataset/{pre_dir}"
-            for file in tqdm(img_list, desc=f"{pre_dir}\t", leave=True, ncols=100, colour="CYAN"):
-                # 获取文件名(带多文件夹的相对路径)
-                raw_name, extension = os.path.splitext(file)
-                img_path = f"{work_path}/{pre_dir}/imgs/{raw_name}{extension}"
-                xml_path = f"{work_path}/{pre_dir}/anns/{raw_name}.xml"
-                json_path = f"{work_path}/{pre_dir}/anns_seg/{raw_name}.json"
-                # 解析单个 ann 文件
-                label_string = generate(img_path, xml_path, json_path, keep_ratio, save_path, save_relative, raw_name)
-                for str in label_string:
-                    ann_file.write(str)
-    with open(f"{save_path}/all_list.txt", "r", encoding='utf-8') as f:
-        list_train = f.readlines()
-    list_test = list_train[::split]
+    dataset = []
+    for dir in find_dir(work_path):
+        # 获取子文件夹名
+        pre_dir = os.path.basename(dir)
+        save_sub_path = f"{save_path}/dataset/{pre_dir}"
+        assert not os.path.isdir(save_sub_path), f"结果文件夹已经存在: {save_sub_path}"
+        os.makedirs(save_sub_path)
+        # 获取img文件列表
+        img_path = os.path.join(dir, "imgs")
+        assert os.path.isdir(img_path), f"图片文件夹不存在: {img_path}"
+        img_list = [f for f in os.listdir(img_path) if f.lower().endswith((".jpg", ".jpeg", ".png"))]
+        # 遍历 ann 文件列表
+        save_relative = f"dataset/{pre_dir}"
+        for file in tqdm(img_list, desc=f"{pre_dir}\t", leave=True, ncols=100, colour="CYAN"):
+            # 获取文件名(带多文件夹的相对路径)
+            raw_name, extension = os.path.splitext(file)
+            img_path = f"{work_path}/{pre_dir}/imgs/{raw_name}{extension}"
+            xml_path = f"{work_path}/{pre_dir}/anns/{raw_name}.xml"
+            json_path = f"{work_path}/{pre_dir}/anns_seg/{raw_name}.json"
+            # 解析单个 ann 文件
+            label_string = generate(img_path, xml_path, json_path, keep_ratio, save_path, save_relative, raw_name)
+            for str in label_string:
+                dataset.append(str)
+    with open(f"{save_path}/all_list.txt", "w", encoding='utf-8') as file:
+        file.writelines(dataset)
+    test_data = dataset[::split_ratio]
     with open(f"{save_path}/test.txt", "w", encoding='utf-8') as file:
-        file.writelines(list_test)
-    del list_train[::split]
+        file.writelines(test_data)
+    del dataset[::split_ratio]
     with open(f"{save_path}/train.txt", "w", encoding='utf-8') as file:
-        file.writelines(list_train)
+        file.writelines(dataset)
 
 
 if __name__ == "__main__":
