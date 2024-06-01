@@ -1,5 +1,6 @@
 # -*- coding: UTF-8 -*-
 import os
+from tqdm import tqdm
 
 
 ##################################################################
@@ -19,73 +20,57 @@ user_categories = set()
 skip_categories = set()
 
 
+# 遍历目录得到目录下的子文件夹
 def find_dir(path):
     return [item.path for item in os.scandir(path) if item.is_dir()]
 
 
-def find_files(path):
-    return [item.path for item in os.scandir(path) if item.is_file()]
+def dir2txt(root_path, split_ratio, format="paddle"):
+    if format == "paddle":
+        sep = '\t'
+    elif format == "mmlab":
+        sep = ' '
+    else:
+        raise Exception("Only support Paddle OCR format and mmlab OCR format")
 
+    dataset = []
+    for dir in find_dir(root_path):
+        first_name = os.path.basename(dir)
+        assert first_name == first_name.strip(), f"first_name: {first_name} 命名有问题！！！"
+        for second in tqdm(find_dir(dir), desc=f"{first_name}\t", leave=True, ncols=100, colour="CYAN"):
+            second_name = os.path.basename(second)
+            assert second_name == second_name.strip(), f"second_name: {second_name} 命名有问题！！！"
+            # 检查标签
+            label = second_name
+            for i, char in enumerate(label):
+                if char in categories:
+                    user_categories.add(char)
+                else:
+                    skip_categories.add(char)
+                    label = f'{label[:i]}#{label[i + 1:]}'
+            imgs_list = [f for f in os.listdir(second) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp'))]
+            for file in imgs_list:
+                basename = os.path.basename(file)
+                dataset.append(f"{first_name}/{second_name}/{basename}{sep}{label}\n")
 
-def dir2txt(path, split_ratio):
-    dirs = find_dir(path)
-    with open("all_list.txt", "a") as f:
-        for dir in dirs:
-            pre_dir = os.path.basename(dir)
-            check = pre_dir.strip()
-            print(f"pre_dir: {check}")
-            if check != pre_dir:
-                print(f"pre_dir: {check} 命名有问题！！！")
-                exit(0)
-            sec_dirs = find_dir(dir)
-            for sec_dir in sec_dirs:
-                label = os.path.basename(sec_dir)
-                check = label.strip()
-                if check != label:
-                    print(f"label: {check} 命名有问题！！！")
-                    exit(0)
-                # 检查标签
-                label_bak = label
-                for i, char in enumerate(label):
-                    if char in categories:
-                        user_categories.add(char)
-                    else:
-                        skip_categories.add(char)
-                        label = f'{label[:i]}#{label[i + 1:]}'
-                # 遍历写入文件
-                files = find_files(sec_dir)
-                for file in files:
-                    basename = os.path.basename(file)
-                    name, exten = os.path.splitext(basename)
-                    if not name.isdigit() or exten.lower() not in [".jpg", ".jpeg", ".png", ".bmp"]:
-                        print(f"\n\033[33m[Warning] 非图片文件: \033[0m{file}")
-                        continue
-                    f.write(f"{pre_dir}/{label_bak}/{basename} {label}\n")
-    with open("all_list.txt", "r") as f:
-        list_train = f.readlines()
-    list_test = list_train[::split_ratio]
-    with open("test.txt", "a") as file:
-        file.writelines(list_test)
-    del list_train[::split_ratio]
-    with open("train.txt", "a") as file:
-        file.writelines(list_train)
-
-
-if __name__ == "__main__":
-    path = os.getcwd()
-    assert (
-        not os.path.isfile("all_list.txt")
-        and not os.path.isfile("test.txt")
-        and not os.path.isfile("train.txt")
-        and not os.path.isfile("dict_file.txt")
-    )
-    dir2txt(path, 10)
+    with open(os.path.join(root_path, "all_list.txt"), "w", encoding='utf-8') as file:
+        file.writelines(dataset)
+    test_data = dataset[::split_ratio]
+    with open(os.path.join(root_path, "test.txt"), "w", encoding='utf-8') as file:
+        file.writelines(test_data)
+    del dataset[::split_ratio]
+    with open(os.path.join(root_path, "train.txt"), "w", encoding='utf-8') as file:
+        file.writelines(dataset)
+    # dict
     dict_list = sorted(user_categories, key=ord)
-    with open("dict_file.txt", "a") as file:
+    with open(os.path.join(root_path, "dict_file.txt"), "w", encoding='utf-8') as file:
         for item in dict_list:
             file.write(f"{item}\n")
     print(f"\n\033[34m[Info] 出现且允许的标签列表: \033[0m{dict_list}")
-    # 打印数据集中出现的不被允许的标签
     if len(skip_categories) > 0:
         print(f"\n\033[33m[Warning] 出现但不被允许的标签: \033[0m{sorted(skip_categories, key=ord)}")
+
+
+if __name__ == "__main__":
+    dir2txt(os.getcwd(), 10)
     print("\nAll process success\n")
