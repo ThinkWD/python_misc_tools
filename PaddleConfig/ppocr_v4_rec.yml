@@ -28,12 +28,12 @@ _label_path_test: &_label_path_test data/${task_name}/src/test.txt
 _label_path_dict: &_label_path_dict data/${task_name}/src/dict_file.txt
 
 ## train batch size
-_batch_size: &_batch_size 128
+_batch_size: &_batch_size 32
 
 ## base learning rate
 # new_lr = (default_base_lr * batch_size * num_gpus) / (default_batch_size * default_num_gpus)
 # new_lr = (0.001 * batch_size * num_gpus) / (192 * 8)
-_learning_rate: &_learning_rate 0.0001
+_learning_rate: &_learning_rate 0.000025
 
 #### >>>>> global <<<<< ######################################
 Global:
@@ -176,5 +176,5 @@ Eval:
   loader:
     shuffle: false
     drop_last: false
-    batch_size_per_card: 64
+    batch_size_per_card: *_batch_size
     num_workers: 16
