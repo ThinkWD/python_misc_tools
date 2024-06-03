@@ -1,5 +1,7 @@
 import os
 import json
+import shutil
+import PIL.Image
 import numpy as np
 from tqdm import tqdm
 
@@ -73,31 +75,37 @@ def parse_labelme(json_path):
 
 
 def get_path_information(path):
-    target = os.path.normpath(path)
-    prefix = os.path.dirname(target)
-    name, format = os.path.splitext(os.path.basename(target))
-    if prefix:
-        prefix += '/'
-    return {'prefix': prefix, 'name': name, 'format': format.lstrip('.')}
+    prefix, fullname = os.path.split(os.path.normpath(path))
+    name, format = os.path.splitext(fullname)
+    return {'prefix': prefix, 'name': name, 'format': format}
 
 
-def main(root_path):
+def main(root_path, label_file):
     anns_prefix = os.path.join(root_path, "anns_seg")
     assert os.path.isdir(anns_prefix), "anns_seg directory not exists."
     assert os.path.isdir(os.path.join(root_path, "imgs")), "imgs directory not exists."
     # get test list
-    with open(os.path.join(root_path, "test.txt"), "r") as f:
-        test_list = f.readlines()
+    with open(os.path.join(root_path, label_file), "r") as f:
+        label_list = f.readlines()
     tusimples = []
-    for str in tqdm(test_list, leave=True, ncols=100, colour="CYAN"):
-        path_info = get_path_information(str[5 : str.find(' ')])
+    for str in tqdm(label_list, leave=True, ncols=100, colour="CYAN"):
+        img_path = str[: str.find(' ')]
+        assert PIL.Image.open(img_path).size == (1920, 1080), "All image must be 1920 * 1080!"
+        path_info = get_path_information(img_path[5:])
         anns_path = os.path.join(anns_prefix, path_info['prefix'], f"{path_info['name']}.json")
         tusimples.append(json.dumps(parse_labelme(anns_path)))
-    # 导出并保存到 txt 文件
+    # export tusimples
     with open(os.path.join(root_path, "test_label.json"), "w") as file:
         file.write("\n".join(tusimples))
 
 
 # Reference: https://github.com/wkentaro/labelme/blob/main/examples/semantic_segmentation/labelme2voc.py
 if __name__ == "__main__":
-    main(os.getcwd())
+    root_path = os.getcwd()
+    main(root_path, "test.txt")
+    # organizational directory structure
+    os.makedirs(f"{root_path}/test_set", exist_ok=True)
+    os.makedirs(f"{root_path}/train_set", exist_ok=True)
+    shutil.move(f"{root_path}/train.txt", f"{root_path}/train_set/train_list.txt")
+    shutil.move(f"{root_path}/test.txt", f"{root_path}/test_set/test_list.txt")
+    shutil.move(f"{root_path}/test_label.json", f"{root_path}/test_set/test_label.json")

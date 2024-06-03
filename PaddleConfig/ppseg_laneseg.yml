@@ -1,6 +1,7 @@
 #  Repositories : https://github.com/PaddlePaddle/PaddleSeg/tree/v2.6.0 (PaddleSeg must be version 2.6.0)
 #     Task type : Lane detection
-# Preprocessing : segmentation_labelme2seg.py segmentation_labelme2tusimple.py
+# Preprocessing : segmentation_labelme2seg.py       # generate voc png annotations
+#                 segmentation_labelme2tusimple.py  # generate tusimple annotations
 #   Base config : contrib/LaneSeg/configs/bisenetV2_tusimple_640x368_300k.yml
 #   Information : https://github.com/PaddlePaddle/PaddleSeg/blob/v2.6.0/contrib/LaneSeg/README_CN.md
 #                 PaddleSeg must be version 2.6.0
