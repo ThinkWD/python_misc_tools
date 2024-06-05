@@ -67,7 +67,7 @@ if __name__ == "__main__":
             else:
                 check_label = False
         if check_label:
-            tree.write(resxmlpath)  # 写入保存文件
+            tree.write(resxmlpath, encoding="UTF-8")  # 写入保存文件
         else:
             print(f"[w] 标签文件有问题：{xmlpath}")
 

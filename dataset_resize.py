@@ -58,7 +58,7 @@ def scale_det(xmlpath, savepath, scalerate, offset_x, offset_y):
             xmax.text = str(int(float(xmax.text) * scalerate + offset_x))
             ymax = getXmlValue(bndbox, "ymax", 1)
             ymax.text = str(int(float(ymax.text) * scalerate + offset_y))
-        tree.write(savepath)
+        tree.write(savepath, encoding="UTF-8")
     except Exception as e:
         raise Exception(f"Failed to parse XML file: {xmlpath}, {e}")
 

@@ -58,7 +58,7 @@ def pipeline_det(ann_path, dst_path, raw_size, target_size):
             xmax.text = str(round(float(xmax.text) * x_scale))
             ymax = getXmlValue(bndbox, "ymax", 1)
             ymax.text = str(round(float(ymax.text) * y_scale))
-        tree.write(dst_path)
+        tree.write(dst_path, encoding="UTF-8")
     except Exception as e:
         raise Exception(f"Failed to parse XML file: {ann_path}, {e}")
 

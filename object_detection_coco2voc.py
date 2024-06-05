@@ -99,7 +99,7 @@ def coco2voc(annfile, outdir):
                 E.bndbox(E.xmin(obj[1]), E.ymin(obj[2]), E.xmax(obj[3]), E.ymax(obj[4])),
             )
             anno_tree.append(anno_tree2)
-        etree.ElementTree(anno_tree).write(annopath, pretty_print=True)
+        etree.ElementTree(anno_tree).write(annopath, encoding="UTF-8", pretty_print=True)
 
     # 转换完成
     print("\n[Info] All process success\n")
