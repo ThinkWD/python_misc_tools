@@ -135,7 +135,7 @@ def main(root_path, split_ratio, format="paddle"):
             assert width > 0 and height > 0
             if rotate_mode:
                 cur_image = cur_image.rotate(90, expand=True)
-                cur_image = cur_image.resize((width, height))
+                cur_image = cur_image.resize((width, height), PIL.Image.BICUBIC)
                 cur_image.save(f'{imgs_path}/{new_prefix}/{raw_name}{extension}')
             # check ann file
             annpath = f"{anns_path}/{prefix}/{raw_name}.json"

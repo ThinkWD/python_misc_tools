@@ -200,7 +200,7 @@ def generate(img_path, xml_path, json_path, keep_ratio, save_root, save_relative
             # pad and resize image
             res = PIL.Image.new("RGB", (img_length, img_length), (0, 0, 0))
             res.paste(crop_img, (offset[0], offset[1]))
-            crop_img = res.resize((box_width, box_height), PIL.Image.BILINEAR)
+            crop_img = res.resize((box_width, box_height), PIL.Image.BICUBIC)
         crop_img.save(f"{save_path}/{raw_name}.jpg")
 
         # 四舍五入 float 转 int
