@@ -87,12 +87,12 @@ def pipeline_image(src_path, dst_path, target_size):
     image = PIL.Image.open(src_path)
     image_size = image.size
     if image_size != target_size:
-        image.resize(target_size, PIL.Image.BICUBIC)
+        image = image.resize(target_size, PIL.Image.BICUBIC)
     image.save(dst_path)
     return image_size
 
 
-def pipeline(root_path):
+def pipeline(root_path, target_size=(0, 0)):
     assert os.path.isdir(f"{root_path}/imgs"), "图片文件夹不存在!"
     assert not os.path.isdir(f"{root_path}/format"), "目标文件夹已存在!"
     os.makedirs(f"{root_path}/format/imgs")
@@ -103,8 +103,10 @@ def pipeline(root_path):
     # get images list
     imgs_list = [f for f in os.listdir(f"{root_path}/imgs") if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
     assert len(imgs_list) > 0, "图片文件夹下没有图片"
-    first_image = PIL.Image.open(f"{root_path}/imgs/{imgs_list[0]}")
-    target_size = first_image.size
+    if target_size[0] == 0 or target_size[1] == 0:
+        first_image = PIL.Image.open(f"{root_path}/imgs/{imgs_list[0]}")
+        target_size = first_image.size
+    print(f"\n >> target_size: {target_size}\n")
     # prosess
     namebit = 6 if len(imgs_list) > 9999 else 4
     for idx, file in enumerate(tqdm(imgs_list, leave=True, ncols=100, colour="CYAN")):
