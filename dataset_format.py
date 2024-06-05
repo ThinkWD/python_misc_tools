@@ -88,12 +88,19 @@ def pipeline_image(src_path, dst_path, target_size):
     image_size = image.size
     if image_size != target_size:
         image = image.resize(target_size, PIL.Image.BICUBIC)
-    image.save(dst_path)
+        image.save(dst_path)
+    else:
+        shutil.copy(src_path, dst_path)
     return image_size
 
 
 def pipeline(root_path, target_size=(0, 0)):
-    assert os.path.isdir(f"{root_path}/imgs"), "图片文件夹不存在!"
+    # dynamic set imgdir
+    dirlist = [it.name for it in os.scandir(root_path) if it.is_dir() and it.name.startswith("imgs_lv")]
+    imgdir = "imgs" if len(dirlist) == 0 else dirlist[0]
+    print(f"\n >> Images directory: {imgdir}")
+    # check path
+    assert os.path.isdir(f"{root_path}/{imgdir}"), "图片文件夹不存在!"
     assert not os.path.isdir(f"{root_path}/format"), "目标文件夹已存在!"
     os.makedirs(f"{root_path}/format/imgs")
     if os.path.isdir(f"{root_path}/anns"):
@@ -101,21 +108,23 @@ def pipeline(root_path, target_size=(0, 0)):
     if os.path.isdir(f"{root_path}/anns_seg"):
         os.makedirs(f"{root_path}/format/anns_seg")
     # get images list
-    imgs_list = [f for f in os.listdir(f"{root_path}/imgs") if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+    imgs_list = [f for f in os.listdir(f"{root_path}/{imgdir}") if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
     assert len(imgs_list) > 0, "图片文件夹下没有图片"
     if target_size[0] == 0 or target_size[1] == 0:
-        first_image = PIL.Image.open(f"{root_path}/imgs/{imgs_list[0]}")
+        first_image = PIL.Image.open(f"{root_path}/{imgdir}/{imgs_list[0]}")
         target_size = first_image.size
     print(f"\n >> target_size: {target_size}\n")
     # prosess
-    namebit = 6 if len(imgs_list) > 9999 else 4
+    resize_count = 0
+    namebit = 6 if len(imgs_list) + offset > 9999 else 4
     for idx, file in enumerate(tqdm(imgs_list, leave=True, ncols=100, colour="CYAN")):
         raw_name, extension = os.path.splitext(file)
         out_name = str(idx + offset).zfill(namebit)
         # image
-        img_src = f"{root_path}/imgs/{file}"
+        img_src = f"{root_path}/{imgdir}/{file}"
         img_dst = f"{root_path}/format/imgs/{out_name}{extension}"
         image_size = pipeline_image(img_src, img_dst, target_size)
+        resize_count += image_size != target_size
         # ann det
         det_src = f"{root_path}/anns/{raw_name}.xml"
         det_dst = f"{root_path}/format/anns/{out_name}.xml"
@@ -125,6 +134,8 @@ def pipeline(root_path, target_size=(0, 0)):
         seg_dst = f"{root_path}/format/anns_seg/{out_name}.json"
         seg_relative = f"../imgs/{out_name}{extension}"
         pipeline_seg(seg_src, seg_dst, seg_relative, image_size, target_size)
+
+    print(f"\n\033[1;33m[Warning] 被缩放的图片数量: \033[0m{resize_count}")
 
 
 if __name__ == "__main__":
