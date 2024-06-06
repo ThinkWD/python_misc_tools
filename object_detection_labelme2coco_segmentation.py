@@ -28,7 +28,7 @@ except ImportError:
 
 
 # 生成的数据集允许的标签列表
-categories = ["switch", "person", "bottle", "chair", "sofa", "bus", "car"]
+categories = ["switch"]
 # 保存数据集中出现的不在允许列表中的标签, 用于最后检查允许列表是否正确
 skip_categories = []
 
@@ -106,7 +106,8 @@ def shape_to_mask(img_shape, points, shape_type=None, line_width=10, point_size=
 
 # 解析单个 labelme 标注文件(json)
 def parse_labelme(json_path, image_width, image_height):
-    assert os.path.isfile(json_path), f"标签文件不存在: {json_path}"
+    if not os.path.isfile(json_path):
+        return {}, {}
     # load json label file
     with open(json_path, "r", encoding="utf-8") as file:
         data = json.load(file)
@@ -149,9 +150,11 @@ def parse_labelme(json_path, image_width, image_height):
             i = np.arange(n_points_circle)
             x = x1 + r * np.sin(2 * np.pi / n_points_circle * i)
             y = y1 + r * np.cos(2 * np.pi / n_points_circle * i)
-            points = np.stack((x, y), axis=1).flatten().tolist()
+            points = np.stack((x, y), axis=1).flatten()
         else:
-            points = np.asarray(points).flatten().tolist()
+            points = np.asarray(points).flatten()
+        # points round to int
+        points = np.rint(points).astype(int).tolist()
         segmentations[instance].append(points)
     # segmentations convert to normal dict
     segmentations = dict(segmentations)
@@ -201,13 +204,12 @@ def generate(img_path, ann_path, viz_path=""):
         bbox = (bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3])
         draw = PIL.ImageDraw.Draw(img)
         draw.rectangle(bbox, outline=color, width=2)
-
-    if len(viz_path) > 0:
+    if len(anns_dict) > 0 and len(viz_path) > 0:
         img.save(viz_path)
     return imgs_dict, anns_dict
 
 
-def process(root_path, split, all_reserve=0, reserve_no_label=True):
+def process(root_path, split, all_reserve=0, reserve_no_label=False):
     print(f"\n[info] start task...")
     data_train = dict(categories=[], images=[], annotations=[])  # 训练集
     data_test = dict(categories=[], images=[], annotations=[])  # 测试集
@@ -221,8 +223,8 @@ def process(root_path, split, all_reserve=0, reserve_no_label=True):
         imgs_dir_path = os.path.join(root_path, dir, "imgs")
         assert os.path.isdir(imgs_dir_path), f"图片文件夹不存在: {imgs_dir_path}"
         # vizs
-        vizs_dir_path = os.path.join(root_path, dir, "anns_viz")
-        os.makedirs(os.path.join(root_path, dir, "anns_viz"), exist_ok=True)
+        vizs_dir_path = os.path.join(root_path, f"viz_{dir}")
+        os.makedirs(vizs_dir_path, exist_ok=True)
         # img_list
         img_list = [f for f in os.listdir(imgs_dir_path) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp'))]
         all_reserve_dir = len(img_list) < all_reserve
