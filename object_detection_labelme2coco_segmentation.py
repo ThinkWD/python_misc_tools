@@ -1,5 +1,4 @@
 # -*- coding=utf-8 -*-
-#!/usr/bin/python
 
 import os
 import sys
@@ -15,9 +14,7 @@ from tqdm import tqdm
 
 ##################################################################
 #
-#   此文件用于实例分割数据集转换格式, 从 labelme 多边形标注转为 COCO 格式
-#
-#   COCO 格式用于 实例分割训练, VOC 格式用于 语义分割训练
+#   此文件用于 实例分割/旋转框 数据集转换格式, 从 labelme 多边形标注转为 COCO 格式
 #
 ##################################################################
 
@@ -30,10 +27,8 @@ except ImportError:
     sys.exit(1)
 
 
-# 根目录
-root_path = os.getcwd()
 # 生成的数据集允许的标签列表
-categories = ["person", "bottle", "chair", "sofa", "bus", "car"]
+categories = ["switch", "person", "bottle", "chair", "sofa", "bus", "car"]
 # 保存数据集中出现的不在允许列表中的标签, 用于最后检查允许列表是否正确
 skip_categories = []
 
@@ -62,12 +57,7 @@ palette = [ # 来自COCO的80类调色盘
 
 # 遍历目录得到目录下的子文件夹
 def find_dir(path):
-    return [item.path for item in os.scandir(path) if item.is_dir()]
-
-
-# 遍历目录得到所有文件
-def find_files(path):
-    return [item.path for item in os.scandir(path) if item.is_file()]
+    return [item.name for item in os.scandir(path) if item.is_dir()]
 
 
 # 检查 COCO 文件是否有问题
@@ -114,52 +104,43 @@ def shape_to_mask(img_shape, points, shape_type=None, line_width=10, point_size=
     return mask
 
 
-# 保存 labelme 支持的形状类型
-labelme_shape_type = ["circle", "rectangle", "line", "linestrip", "point", "polygon"]
-
-
-def parse_labelme_ann(imgpath, viz_imgpath, annpath, img_id, bbox_id):
-    # 读图返回图片信息
-    assert os.path.isfile(imgpath), f"图片文件不存在: {imgpath}"
-    img = PIL.Image.open(imgpath)
-    width, height = img.size
-    assert width > 0 and height > 0
-    imgs_dict = dict(id=img_id, file_name=imgpath, width=width, height=height)
-    anns_dict = []
-    if not os.path.isfile(annpath):
-        return imgs_dict, anns_dict
-    # 读标签文件
-    with open(annpath, "r") as file_in:
-        anndata = json.load(file_in)
-    assert width == anndata["imageWidth"] and height == anndata["imageHeight"], f"图片与标签不对应: {imgpath}"
-    # 遍历形状
-    masks = {}  # 用于存储每个实例的掩码
-    segmentations = collections.defaultdict(list)  # 用于存储每个实例的分割点坐标
-    for shape in anndata["shapes"]:
-        # 检查 label 是否在允许列表中
+# 解析单个 labelme 标注文件(json)
+def parse_labelme(json_path, image_width, image_height):
+    assert os.path.isfile(json_path), f"标签文件不存在: {json_path}"
+    # load json label file
+    with open(json_path, "r", encoding="utf-8") as file:
+        data = json.load(file)
+    # check image size
+    assert image_width == int(data["imageWidth"]), f"图片与标签不对应: {json_path}"
+    assert image_height == int(data["imageHeight"]), f"图片与标签不对应: {json_path}"
+    # parse shapes info
+    masks = {}
+    segmentations = collections.defaultdict(list)  # 如果你访问一个不存在的键, defaultdict 会自动为这个键创建一个默认值
+    for shape in data["shapes"]:
+        # check label
         label = shape["label"]
         if label not in categories:
             if label not in skip_categories:
                 skip_categories.append(label)
             continue
-        # 检查形状类型
+        # check shape type (rotation == polygon)
         shape_type = shape["shape_type"]
-        if shape_type not in labelme_shape_type:
-            continue
-        # 生成mask
-        points = shape["points"]
-        mask = shape_to_mask([height, width], points, shape_type)
+        if shape_type not in ['circle', 'rectangle', 'line', 'linestrip', 'point', 'polygon', 'rotation']:
+            raise Exception(f"Unsupported shape types: {shape_type}, check: {json_path}")
+        # get instance (唯一实例 flag 值)
         group_id = uuid.uuid1() if shape["group_id"] is None else shape["group_id"]
-        instance = (label, group_id)  # 唯一实例 flag 值
-        # 如果存在同一 group_id 的 mask , 就合并它们
+        instance = (label, group_id)
+        # generate mask (如果存在同一 group_id 的 mask , 就合并它们)
+        points = shape["points"]
+        mask = shape_to_mask([image_height, image_width], points, shape_type)
         masks[instance] = masks[instance] | mask if instance in masks else mask
-        # 处理点集, 根据形状类型将点转换为一维列表.
+        # points convert
         if shape_type == "rectangle":  # 矩形将两个对角点转换为四个顶点
             (x1, y1), (x2, y2) = points
             x1, x2 = sorted([x1, x2])
             y1, y2 = sorted([y1, y2])
             points = [x1, y1, x2, y1, x2, y2, x1, y2]
-        if shape_type == "circle":  # 圆形根据圆心和半径，生成一个多边形的点坐标。
+        elif shape_type == "circle":  # 圆形根据圆心和半径，生成一个多边形的点坐标。
             (x1, y1), (x2, y2) = points
             r = np.linalg.norm([x2 - x1, y2 - y1])
             # r(1-cos(a/2))<x, a=2*pi/N => N>pi/arccos(1-x/r)
@@ -172,18 +153,33 @@ def parse_labelme_ann(imgpath, viz_imgpath, annpath, img_id, bbox_id):
         else:
             points = np.asarray(points).flatten().tolist()
         segmentations[instance].append(points)
+    # segmentations convert to normal dict
     segmentations = dict(segmentations)
 
-    for index, (instance, mask) in enumerate(masks.items()):
-        label, group_id = instance
+    return masks, segmentations
+
+
+def generate(img_path, ann_path, viz_path=""):
+    # check image
+    assert os.path.isfile(img_path), f"图片文件不存在: {img_path}"
+    img = PIL.Image.open(img_path)
+    width, height = img.size
+    assert width > 0 and height > 0
+    # parse labelme anns file
+    masks, segmentations = parse_labelme(ann_path, width, height)
+    # generate anns
+    imgs_dict = dict(id=0, file_name=img_path, width=width, height=height)
+    anns_dict = []
+    for instance, mask in masks.items():
+        label, _ = instance
         label_id = categories.index(label)
         a_mask = np.asfortranarray(mask.astype(np.uint8))  # 将 mask 转为 Fortran 无符号整数数组
         a_mask = pycocotools.mask.encode(a_mask)  # 将 mask 编码为 RLE 格式
         area = float(pycocotools.mask.area(a_mask))  # 计算 mask 的面积
         bbox = pycocotools.mask.toBbox(a_mask).flatten().tolist()  # 计算边界框(x,y,w,h)
         annotation = dict(
-            id=bbox_id + index,
-            image_id=img_id,
+            id=0,
+            image_id=0,
             category_id=label_id,
             bbox=bbox,
             segmentation=segmentations[instance],
@@ -191,85 +187,99 @@ def parse_labelme_ann(imgpath, viz_imgpath, annpath, img_id, bbox_id):
             iscrowd=0,
         )
         anns_dict.append(annotation)
-        # 绘图
-        color = palette[index % 80]  # 获取颜色
-        # 画mask
+        if len(viz_path) == 0:
+            continue
+        # draw mask
+        color = palette[label_id % 80]  # 获取颜色
         mask = mask.astype(np.uint8)
         mask[mask == 0] = 255
         mask[mask == 1] = 128
         mask = PIL.Image.fromarray(mask, mode="L")
         color_img = PIL.Image.new("RGB", mask.size, color)
         img = PIL.Image.composite(img, color_img, mask)
-        # 画框
-        bbox = (bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3])  # bbox
+        # draw bbox
+        bbox = (bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3])
         draw = PIL.ImageDraw.Draw(img)
         draw.rectangle(bbox, outline=color, width=2)
 
-    img.save(viz_imgpath)
+    if len(viz_path) > 0:
+        img.save(viz_path)
     return imgs_dict, anns_dict
 
 
-def labelme_convert(task):
-    print(f"\n[info] task : {task}...")
-    data = dict(categories=[], images=[], annotations=[])
+def process(root_path, split, all_reserve=0, reserve_no_label=True):
+    print(f"\n[info] start task...")
+    data_train = dict(categories=[], images=[], annotations=[])  # 训练集
+    data_test = dict(categories=[], images=[], annotations=[])  # 测试集
     # 初始索引ID
-    img_id = 0
-    bbox_id = 0
-    # 遍历 path 下的子文件夹
-    path = os.path.join(root_path, task)
-    dirs = find_dir(path)
-    for dir in dirs:
+    train_img_id = 0
+    train_bbox_id = 0
+    test_img_id = 0
+    test_bbox_id = 0
+    for dir in find_dir(root_path):
+        # imgs
+        imgs_dir_path = os.path.join(root_path, dir, "imgs")
+        assert os.path.isdir(imgs_dir_path), f"图片文件夹不存在: {imgs_dir_path}"
+        # vizs
+        vizs_dir_path = os.path.join(root_path, dir, "anns_viz")
+        os.makedirs(os.path.join(root_path, dir, "anns_viz"), exist_ok=True)
+        # img_list
+        img_list = [f for f in os.listdir(imgs_dir_path) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp'))]
+        all_reserve_dir = len(img_list) < all_reserve
         not_ann_cnt = 0
-        # 获取并打印子文件夹名
-        pre_dir = os.path.basename(dir)
-        # 获取img文件列表
-        img_path = os.path.join(dir, "imgs")
-        assert os.path.isdir(img_path)
-        img_list = os.listdir(img_path)
-        # 自适应选定ann文件夹名
-        anndir = "anns_seg" if os.path.isdir(f"{task}/{pre_dir}/anns_seg") else "anns"
-        # 创建 viz 验证图片的文件夹
-        if not os.path.isdir(f"{task}_viz/{pre_dir}"):
-            os.makedirs(f"{task}_viz/{pre_dir}")
-        # 遍历img文件列表
-        for file in tqdm(img_list, desc=f"{pre_dir}\t", leave=True, ncols=100, colour="CYAN"):
-            # 获取文件名(带多文件夹的相对路径)
-            file = file.strip()
-            imgpath = f"{task}/{pre_dir}/imgs/{file}"
-            viz_imgpath = f"{task}_viz/{pre_dir}/{file}"
-            annpath = f"{task}/{pre_dir}/{anndir}/{file[:file.rindex('.')]}.json"
-            # 解析 ann 文件
-            imgs, anns = parse_labelme_ann(imgpath, viz_imgpath, annpath, img_id, bbox_id)
-            # 更新索引ID
-            img_id += 1
-            bbox_id += len(anns)
-            not_ann_cnt += 1 if len(anns) == 0 else 0
-            # 更新 json_data
-            data["images"].append(imgs)
-            for ann in anns:
-                data["annotations"].append(ann)
+        for num, file in enumerate(tqdm(img_list, desc=f"{dir}\t", leave=True, ncols=100, colour="CYAN")):
+            # misc path
+            raw_name, extension = os.path.splitext(file)
+            img_path = f"{dir}/imgs/{raw_name}{extension}"
+            ann_path = f"{dir}/anns_seg/{raw_name}.json"
+            viz_path = f"{vizs_dir_path}/{raw_name}.jpg"
+            # get dict
+            imgs_dict, anns_dict = generate(img_path, ann_path, viz_path)
+            # check anns_dict size
+            anns_size = len(anns_dict)
+            not_ann_cnt += 1 if anns_size == 0 else 0
+            if reserve_no_label == False and anns_size == 0:
+                continue
+            # train dataset
+            if all_reserve_dir or split <= 0 or num % split != 0:
+                imgs_dict["id"] = train_img_id
+                data_train["images"].append(imgs_dict.copy())
+                for idx, ann in enumerate(anns_dict):
+                    ann["image_id"] = train_img_id
+                    ann["id"] = train_bbox_id + idx
+                    data_train["annotations"].append(ann.copy())
+                train_img_id += 1
+                train_bbox_id += anns_size
+            # test dataset
+            if all_reserve_dir or split <= 0 or num % split == 0:
+                imgs_dict["id"] = test_img_id
+                data_test["images"].append(imgs_dict.copy())
+                for idx, ann in enumerate(anns_dict):
+                    ann["image_id"] = test_img_id
+                    ann["id"] = test_bbox_id + idx
+                    data_test["annotations"].append(ann.copy())
+                test_img_id += 1
+                test_bbox_id += anns_size
         if not_ann_cnt != 0:
-            print(f"\033[1;31m[Error] 路径{task}/{pre_dir}中有{not_ann_cnt}张图片不存在标注文件！！\n\033[0m")
-    # 更新 categories 项
+            print(f"\033[1;31m[Warning] {dir}中有{not_ann_cnt}张图片不存在标注文件\n\033[0m")
+
+    print(f"\n训练集图片总数: {train_img_id}, 标注总数: {train_bbox_id}\n")
+    print(f"测试集图片总数: {test_img_id}, 标注总数: {test_bbox_id}\n")
+    # export to file
     for id, category in enumerate(categories):
-        cat = dict(id=id, name=category, supercategory=category)
-        data["categories"].append(cat)
-    # 导出并保存到json文件
-    with open(f"./{task}.json", "w") as f:
-        json.dump(data, f, indent=4)
-    # 检查COCO文件是否正确
-    checkCOCO(f"./{task}.json")
+        cat = {"id": id, "name": category, "supercategory": category}
+        data_train["categories"].append(cat)
+        data_test["categories"].append(cat)
+    with open("./train.json", "w") as f:
+        json.dump(data_train, f, indent=4)
+    checkCOCO("./train.json")
+    with open("./test.json", "w") as f:
+        json.dump(data_test, f, indent=4)
+    checkCOCO("./test.json")
 
 
 if __name__ == "__main__":
-    # 根据建立的文件夹判断要进行哪些任务
-    if os.path.isdir(f"{root_path}/train"):
-        labelme_convert("train")
-    if os.path.isdir(f"{root_path}/test"):
-        labelme_convert("test")
-    if os.path.isdir(f"{root_path}/val"):
-        labelme_convert("val")
-    # 打印数据集中出现的不被允许的标签
+    process(os.getcwd(), 10)
     if len(skip_categories) > 0:
         print(f"\n\033[1;33m[Warning] 出现但不被允许的标签: \033[0m{skip_categories}")
     print("\nAll process success\n")
