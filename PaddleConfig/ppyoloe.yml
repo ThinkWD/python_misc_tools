@@ -82,3 +82,6 @@ weights: workspace/${config_name}/best_model.pdparams
 pretrain_weights: https://bj.bcebos.com/v1/paddledet/models/pretrained/ppyoloe_crn_s_obj365_pretrained.pdparams
 depth_mult: 0.33
 width_mult: 0.50
+
+### Base config : configs/runtime.yml
+save_dir: workspace
