@@ -1,15 +1,13 @@
 # -*- coding=utf-8 -*-
 
 import os
-import sys
 import json
-import math
-import uuid
-import collections
 import PIL.Image
 import PIL.ImageDraw
 import numpy as np
+import pycocotools.mask
 from tqdm import tqdm
+from module import palette, find_dir, parse_labelme, checkCOCO
 
 
 ##################################################################
@@ -19,162 +17,29 @@ from tqdm import tqdm
 ##################################################################
 
 
-try:
-    import pycocotools.coco
-    import pycocotools.mask
-except ImportError:
-    print("Please install pycocotools:\n\n    pip install pycocotools\n")
-    sys.exit(1)
-
-
 # 生成的数据集允许的标签列表
 categories = ["switch"]
 # 保存数据集中出现的不在允许列表中的标签, 用于最后检查允许列表是否正确
 skip_categories = []
 
 
-# fmt: off
-palette = [ # 来自COCO的80类调色盘
-    (220, 20, 60),(119, 11, 32),(0, 0, 142),(0, 0, 230),(106, 0, 228),
-    (0, 60, 100),(0, 80, 100),(0, 0, 70),(0, 0, 192),(250, 170, 30),
-    (100, 170, 30),(220, 220, 0),(175, 116, 175),(250, 0, 30),(165, 42, 42),
-    (255, 77, 255),(0, 226, 252),(182, 182, 255),(0, 82, 0),(120, 166, 157),
-    (110, 76, 0),(174, 57, 255),(199, 100, 0),(72, 0, 118),(255, 179, 240),
-    (0, 125, 92),(209, 0, 151),(188, 208, 182),(0, 220, 176),(255, 99, 164),
-    (92, 0, 73),(133, 129, 255),(78, 180, 255),(0, 228, 0),(174, 255, 243),
-    (45, 89, 255),(134, 134, 103),(145, 148, 174),(255, 208, 186),(197, 226, 255),
-    (171, 134, 1),(109, 63, 54),(207, 138, 255),(151, 0, 95),(9, 80, 61),
-    (84, 105, 51),(74, 65, 105),(166, 196, 102),(208, 195, 210),(255, 109, 65),
-    (0, 143, 149),(179, 0, 194),(209, 99, 106),(5, 121, 0),(227, 255, 205),
-    (147, 186, 208),(153, 69, 1),(3, 95, 161),(163, 255, 0),(119, 0, 170),
-    (0, 182, 199),(0, 165, 120),(183, 130, 88),(95, 32, 0),(130, 114, 135),
-    (110, 129, 133),(166, 74, 118),(219, 142, 185),(79, 210, 114),(178, 90, 62),
-    (65, 70, 15),(127, 167, 115),(59, 105, 106),(142, 108, 45),(196, 172, 0),
-    (95, 54, 80),(128, 76, 255),(201, 57, 1),(246, 0, 122),(191, 162, 208)
-]
-# fmt: on
-
-
-# 遍历目录得到目录下的子文件夹
-def find_dir(path):
-    return [item.name for item in os.scandir(path) if item.is_dir()]
-
-
-# 检查 COCO 文件是否有问题
-def checkCOCO(coco_file):
-    coco_api = pycocotools.coco.COCO(coco_file)
-    img_ids = sorted(list(coco_api.imgs.keys()))
-    anns = [coco_api.imgToAnns[img_id] for img_id in img_ids]
-    if "minival" not in coco_file:
-        ann_ids = [ann["id"] for anns_per_image in anns for ann in anns_per_image]
-        if len(set(ann_ids)) != len(ann_ids):
-            result = dict(collections(ann_ids))
-            duplicate_items = {key: value for key, value in result.items() if value > 1}
-            raise Exception(f"Annotation ids in '{coco_file}' are not unique! duplicate items:\n{duplicate_items}")
-
-
-# shape_to_mask
-def shape_to_mask(img_shape, points, shape_type=None, line_width=10, point_size=5):
-    mask = np.zeros(img_shape[:2], dtype=np.uint8)
-    mask = PIL.Image.fromarray(mask)
-    draw = PIL.ImageDraw.Draw(mask)
-    xy = [tuple(point) for point in points]
-    if shape_type == "circle":
-        assert len(xy) == 2, "Shape of shape_type=circle must have 2 points"
-        (cx, cy), (px, py) = xy
-        d = math.sqrt((cx - px) ** 2 + (cy - py) ** 2)
-        draw.ellipse([cx - d, cy - d, cx + d, cy + d], outline=1, fill=1)
-    elif shape_type == "rectangle":
-        assert len(xy) == 2, "Shape of shape_type=rectangle must have 2 points"
-        draw.rectangle(xy, outline=1, fill=1)
-    elif shape_type == "line":
-        assert len(xy) == 2, "Shape of shape_type=line must have 2 points"
-        draw.line(xy=xy, fill=1, width=line_width)
-    elif shape_type == "linestrip":
-        draw.line(xy=xy, fill=1, width=line_width)
-    elif shape_type == "point":
-        assert len(xy) == 1, "Shape of shape_type=point must have 1 points"
-        cx, cy = xy[0]
-        r = point_size
-        draw.ellipse([cx - r, cy - r, cx + r, cy + r], outline=1, fill=1)
-    else:
-        assert len(xy) > 2, "Polygon must have points more than 2"
-        draw.polygon(xy=xy, outline=1, fill=1)
-    mask = np.array(mask, dtype=bool)
-    return mask
-
-
-# 解析单个 labelme 标注文件(json)
-def parse_labelme(json_path, image_width, image_height):
-    if not os.path.isfile(json_path):
-        return {}, {}
-    # load json label file
-    with open(json_path, "r", encoding="utf-8") as file:
-        data = json.load(file)
-    # check image size
-    assert image_width == int(data["imageWidth"]), f"图片与标签不对应: {json_path}"
-    assert image_height == int(data["imageHeight"]), f"图片与标签不对应: {json_path}"
-    # parse shapes info
-    masks = {}
-    segmentations = collections.defaultdict(list)  # 如果你访问一个不存在的键, defaultdict 会自动为这个键创建一个默认值
-    for shape in data["shapes"]:
-        # check label
-        label = shape["label"]
-        if label not in categories:
-            if label not in skip_categories:
-                skip_categories.append(label)
-            continue
-        # check shape type (rotation == polygon)
-        shape_type = shape["shape_type"]
-        if shape_type not in ['circle', 'rectangle', 'line', 'linestrip', 'point', 'polygon', 'rotation']:
-            raise Exception(f"Unsupported shape types: {shape_type}, check: {json_path}")
-        # get instance (唯一实例 flag 值)
-        group_id = uuid.uuid1() if shape["group_id"] is None else shape["group_id"]
-        instance = (label, group_id)
-        # generate mask (如果存在同一 group_id 的 mask , 就合并它们)
-        points = shape["points"]
-        mask = shape_to_mask([image_height, image_width], points, shape_type)
-        masks[instance] = masks[instance] | mask if instance in masks else mask
-        # points convert
-        if shape_type == "rectangle":  # 矩形将两个对角点转换为四个顶点
-            (x1, y1), (x2, y2) = points
-            x1, x2 = sorted([x1, x2])
-            y1, y2 = sorted([y1, y2])
-            points = [x1, y1, x2, y1, x2, y2, x1, y2]
-        elif shape_type == "circle":  # 圆形根据圆心和半径，生成一个多边形的点坐标。
-            (x1, y1), (x2, y2) = points
-            r = np.linalg.norm([x2 - x1, y2 - y1])
-            # r(1-cos(a/2))<x, a=2*pi/N => N>pi/arccos(1-x/r)
-            # x: tolerance of the gap between the arc and the line segment
-            n_points_circle = max(int(np.pi / np.arccos(1 - 1 / r)), 12)
-            i = np.arange(n_points_circle)
-            x = x1 + r * np.sin(2 * np.pi / n_points_circle * i)
-            y = y1 + r * np.cos(2 * np.pi / n_points_circle * i)
-            points = np.stack((x, y), axis=1).flatten()
-        else:
-            points = np.asarray(points).flatten()
-        # points round to int
-        points = np.rint(points).astype(int).tolist()
-        segmentations[instance].append(points)
-    # segmentations convert to normal dict
-    segmentations = dict(segmentations)
-
-    return masks, segmentations
-
-
-def generate(img_path, ann_path, viz_path=""):
+def generate(img_path, seg_path, viz_path=""):
     # check image
     assert os.path.isfile(img_path), f"图片文件不存在: {img_path}"
     img = PIL.Image.open(img_path)
     width, height = img.size
     assert width > 0 and height > 0
     # parse labelme anns file
-    masks, segmentations = parse_labelme(ann_path, width, height)
+    masks, shapes = parse_labelme(seg_path, width, height)
     # generate anns
     imgs_dict = dict(id=0, file_name=img_path, width=width, height=height)
     anns_dict = []
     for instance, mask in masks.items():
-        label, _ = instance
+        label = instance[0]
+        if label not in categories:
+            if label not in skip_categories:
+                skip_categories.append(label)
+            continue
         label_id = categories.index(label)
         a_mask = np.asfortranarray(mask.astype(np.uint8))  # 将 mask 转为 Fortran 无符号整数数组
         a_mask = pycocotools.mask.encode(a_mask)  # 将 mask 编码为 RLE 格式
@@ -185,7 +50,7 @@ def generate(img_path, ann_path, viz_path=""):
             image_id=0,
             category_id=label_id,
             bbox=bbox,
-            segmentation=segmentations[instance],
+            segmentation=shapes[instance],
             area=area,
             iscrowd=0,
         )
@@ -219,13 +84,12 @@ def process(root_path, split, all_reserve=0, reserve_no_label=False):
     test_img_id = 0
     test_bbox_id = 0
     for dir in find_dir(root_path):
-        # imgs
-        imgs_dir_path = os.path.join(root_path, dir, "imgs")
-        assert os.path.isdir(imgs_dir_path), f"图片文件夹不存在: {imgs_dir_path}"
         # vizs
         vizs_dir_path = os.path.join(root_path, f"viz_{dir}")
         os.makedirs(vizs_dir_path, exist_ok=True)
         # img_list
+        imgs_dir_path = os.path.join(root_path, dir, "imgs")
+        assert os.path.isdir(imgs_dir_path), f"图片文件夹不存在: {imgs_dir_path}"
         img_list = [f for f in os.listdir(imgs_dir_path) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp'))]
         all_reserve_dir = len(img_list) < all_reserve
         not_ann_cnt = 0
@@ -233,10 +97,10 @@ def process(root_path, split, all_reserve=0, reserve_no_label=False):
             # misc path
             raw_name, extension = os.path.splitext(file)
             img_path = f"{dir}/imgs/{raw_name}{extension}"
-            ann_path = f"{dir}/anns_seg/{raw_name}.json"
+            seg_path = f"{dir}/anns_seg/{raw_name}.json"
             viz_path = f"{vizs_dir_path}/{raw_name}.jpg"
             # get dict
-            imgs_dict, anns_dict = generate(img_path, ann_path, viz_path)
+            imgs_dict, anns_dict = generate(img_path, seg_path, viz_path)
             # check anns_dict size
             anns_size = len(anns_dict)
             not_ann_cnt += 1 if anns_size == 0 else 0
