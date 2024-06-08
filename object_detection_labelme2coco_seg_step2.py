@@ -72,7 +72,7 @@ def generate(img_path, det_path, seg_path, keep_ratio, save_root, save_relative,
         # generate coco label
         anns = []
         for instance, shape in in_shapes.items():
-            shape = np.rint(shape).astype(int).flatten().tolist()  # round to int
+            shape = np.rint(shape).astype(int).reshape(1, -1).tolist()  # round to int
             label_id = categories.index(instance[0])
             t_mask = masks[instance]
             t_mask = np.asfortranarray(t_mask.astype(np.uint8))
