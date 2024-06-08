@@ -18,7 +18,7 @@
 #   python3 -m paddle.distributed.launch tools/train.py -c data/${task_name}/${config_name}.yml --eval --amp -r workspace/${config_name}/34
 
 ### Export inference model
-#   python3 tools/export_model.py -c data/${task_name}/${config_name}.yml --output_dir workspace/${config_name} -o export_onnx=True
+#   python3 tools/export_model.py -c data/${task_name}/${config_name}.yml --output_dir workspace/${task_name} -o export_onnx=True
 
 ########################################################################################
 ## dataset root
@@ -29,13 +29,13 @@ _label_path_test: &_label_path_test test.json
 ## number of classes
 _num_classes: &_num_classes 1
 
-## train batch size
-_batch_size: &_batch_size 4
+## train batch size (Use default batch_size to converge faster)
+_batch_size: &_batch_size 2
 
 ## base learning rate
 # new_lr = (default_base_lr * batch_size * num_gpus) / (default_batch_size * default_num_gpus)
 # new_lr = (0.008 * batch_size * num_gpus) / (2 * 4)
-_learning_rate: &_learning_rate 0.004
+_learning_rate: &_learning_rate 0.002
 
 #### >>>>> global <<<<< ######################################
 _BASE_: [
@@ -46,6 +46,7 @@ _BASE_: [
 ]
 
 ### Base config : configs/rotate/ppyoloe_r/_base_/ppyoloe_r_reader.yml
+# 训练第二步模型时需要手动在文件中修改 image_size: [512, 512]
 worker_num: 8
 TrainReader:
   batch_size: *_batch_size
@@ -78,10 +79,10 @@ TestDataset:
 ### Base config : configs/rotate/ppyoloe_r/ppyoloe_r_crn_s_3x_dota.yml
 log_iter: 20
 snapshot_epoch: 3
-weights: workspace/${config_name}/best_model.pdparams
+weights: workspace/${task_name}/best_model.pdparams
 pretrain_weights: https://paddledet.bj.bcebos.com/models/pretrained/CSPResNetb_s_pretrained.pdparams
 depth_mult: 0.33
 width_mult: 0.50
 
 ### Base config : configs/runtime.yml
-save_dir: workspace
+save_dir: workspace/${task_name}
