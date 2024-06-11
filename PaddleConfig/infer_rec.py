@@ -105,13 +105,13 @@ def inference():
     root_path = config['Global'].get('infer_img', "./data/ppv3rec")
     label_file_path = os.path.join(root_path, 'all_list.txt')
     error_label_num = 0
-    with open(label_file_path, "r") as fread, open(save_path, "w") as fwrite:
+    with open(label_file_path, "r", encoding='utf-8') as fread, open(save_path, "w") as fwrite:
         total_fread = len(fread.readlines())
         fread.seek(0)
         for line in tqdm(fread, total=total_fread, leave=True, ncols=120, colour="CYAN"):
             line = line.strip().split('\t')
             img_path = os.path.join(root_path, line[0])
-            with open(img_path, 'rb') as f:
+            with open(img_path, 'rb', encoding='utf-8') as f:
                 img = f.read()
                 data = {'image': img}
             batch = transform(data, ops)

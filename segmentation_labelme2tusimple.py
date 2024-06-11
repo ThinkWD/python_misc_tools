@@ -136,7 +136,7 @@ def process_tusimple(root_path, label_file):
     assert os.path.isdir(imgs_path), "imgs directory not exists."
     assert os.path.isdir(anns_path), "anns_seg directory not exists."
     # get test list
-    with open(os.path.join(root_path, label_file), "r") as f:
+    with open(os.path.join(root_path, label_file), "r", encoding='utf-8') as f:
         label_list = f.readlines()
     tusimples = []
     for idx, str in enumerate(tqdm(label_list, leave=True, ncols=100, colour="CYAN")):
@@ -157,9 +157,9 @@ def process_tusimple(root_path, label_file):
     # export tusimples
     raw_name, _ = os.path.splitext(label_file)
     os.makedirs(f"{root_path}/{raw_name}_set", exist_ok=True)
-    with open(f"{root_path}/{raw_name}_set/{raw_name}_list.txt", "w") as file:
+    with open(f"{root_path}/{raw_name}_set/{raw_name}_list.txt", "w", encoding='utf-8') as file:
         file.writelines(label_list)
-    with open(f"{root_path}/{raw_name}_set/{raw_name}_label.json", "w") as file:
+    with open(f"{root_path}/{raw_name}_set/{raw_name}_label.json", "w", encoding='utf-8') as file:
         file.write("\n".join(tusimples))
 
 

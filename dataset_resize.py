@@ -72,7 +72,7 @@ def scale_seg(jsonpath, savepath, relative_path, scalerate, offset_x, offset_y):
         for p in shape["points"]:
             p[0] = p[0] * scalerate + offset_x
             p[1] = p[1] * scalerate + offset_y
-    with open(savepath, "w") as file_out:
+    with open(savepath, "w", encoding='utf-8') as file_out:
         json.dump(data, file_out, indent=4)
 
 

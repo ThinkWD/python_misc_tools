@@ -111,10 +111,10 @@ def process(root_path, split, all_reserve=0, reserve_no_label=True):
         cat = {"id": id, "name": category, "supercategory": category}
         data_train["categories"].append(cat)  # 训练集
         data_test["categories"].append(cat)  # 测试集
-    with open("./train.json", "w") as f:
+    with open("./train.json", "w", encoding='utf-8') as f:
         json.dump(data_train, f, indent=4)
     checkCOCO("./train.json")  # 检查COCO文件是否正确
-    with open("./test.json", "w") as f:
+    with open("./test.json", "w", encoding='utf-8') as f:
         json.dump(data_test, f, indent=4)
     checkCOCO("./test.json")  # 检查COCO文件是否正确
 

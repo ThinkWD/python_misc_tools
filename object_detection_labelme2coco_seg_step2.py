@@ -51,7 +51,7 @@ def generate_labelme_check_file(shape, width, height, save_path, save_name):
         attributes={},
     )
     check_json['shapes'].append(element)
-    with open(f"{save_path}/{save_name}.json", "w") as f:
+    with open(f"{save_path}/{save_name}.json", "w", encoding='utf-8') as f:
         json.dump(check_json, f, indent=4)
 
 
@@ -208,10 +208,10 @@ def process(root_path, save_dir, split, keep_ratio, all_reserve=0):
         cat = {"id": id, "name": category, "supercategory": category}
         data_train["categories"].append(cat)
         data_test["categories"].append(cat)
-    with open(f"{save_path}/train.json", "w") as f:
+    with open(f"{save_path}/train.json", "w", encoding='utf-8') as f:
         json.dump(data_train, f, indent=4)
     checkCOCO(f"{save_path}/train.json")
-    with open(f"{save_path}/test.json", "w") as f:
+    with open(f"{save_path}/test.json", "w", encoding='utf-8') as f:
         json.dump(data_test, f, indent=4)
     checkCOCO(f"{save_path}/test.json")
 

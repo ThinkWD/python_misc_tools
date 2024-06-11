@@ -121,10 +121,10 @@ def process(root_path, split, all_reserve=0, reserve_no_label=False):
     print(f"\n训练集图片总数: {train_img_id}, 标注总数: {train_bbox_id}\n")
     print(f"测试集图片总数: {test_img_id}, 标注总数: {test_bbox_id}\n")
     # export to file
-    with open("./pose_train.json", "w") as f:
+    with open("./pose_train.json", "w", encoding='utf-8') as f:
         json.dump(data_train, f, indent=4)
     checkCOCO("./pose_train.json")  # 检查COCO文件是否正确
-    with open("./pose_test.json", "w") as f:
+    with open("./pose_test.json", "w", encoding='utf-8') as f:
         json.dump(data_test, f, indent=4)
     checkCOCO("./pose_test.json")  # 检查COCO文件是否正确
 

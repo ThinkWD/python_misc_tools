@@ -137,10 +137,10 @@ def process(root_path, split, all_reserve=0, reserve_no_label=False):
         cat = {"id": id, "name": category, "supercategory": category}
         data_train["categories"].append(cat)
         data_test["categories"].append(cat)
-    with open("./train.json", "w") as f:
+    with open("./train.json", "w", encoding='utf-8') as f:
         json.dump(data_train, f, indent=4)
     checkCOCO("./train.json")
-    with open("./test.json", "w") as f:
+    with open("./test.json", "w", encoding='utf-8') as f:
         json.dump(data_test, f, indent=4)
     checkCOCO("./test.json")
 

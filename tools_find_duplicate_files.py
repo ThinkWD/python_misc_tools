@@ -13,7 +13,7 @@ def find_duplicate_files(folder_path):
             else:
                 file_dict[file_name] = [file_path]
 
-    with open("./duplicate.txt", 'w') as f:
+    with open("./duplicate.txt", 'w', encoding='utf-8') as f:
         for file_name, file_paths in file_dict.items():
             if len(file_paths) > 1:
                 f.write(f"Duplicate file '{file_name}':\n")

@@ -44,13 +44,13 @@ def dir2cls(root_path, split_ratio):
             for file in tqdm(img_list, desc=f"{categorie}/{second_name}\t", leave=True, ncols=150, colour="CYAN"):
                 all_list.append(f"{categorie}/{second_name}/{file}\t{one_hot}\n")
 
-    with open(os.path.join(root_path, "all_list.txt"), "w") as file:
+    with open(os.path.join(root_path, "all_list.txt"), "w", encoding='utf-8') as file:
         file.writelines(all_list)
     test_list = all_list[::split_ratio]
-    with open(os.path.join(root_path, "test.txt"), "w") as file:
+    with open(os.path.join(root_path, "test.txt"), "w", encoding='utf-8') as file:
         file.writelines(test_list)
     del all_list[::split_ratio]
-    with open(os.path.join(root_path, "train.txt"), "a") as file:
+    with open(os.path.join(root_path, "train.txt"), "w", encoding='utf-8') as file:
         file.writelines(all_list)
 
 
