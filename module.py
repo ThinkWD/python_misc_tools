@@ -181,9 +181,8 @@ def parse_labelme(
             y = y1 + r * np.cos(2 * np.pi / n_points_circle * i)
             points = np.stack((x, y), axis=1).flatten()
         else:
-            points = np.asarray(points).flatten()
+            points = np.asarray(points).flatten().tolist()
         # points round to int
-        points = np.rint(points).astype(int).tolist()
         shapes[instance].append(points)
     # shapes convert to normal dict
     shapes = dict(shapes)
