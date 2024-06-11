@@ -7,7 +7,7 @@ import PIL.ImageDraw
 import numpy as np
 import pycocotools.mask
 from tqdm import tqdm
-from module import palette, find_dir, parse_labelme, checkCOCO
+from module import get_color_map, find_dir, parse_labelme, checkCOCO
 
 
 ##################################################################
@@ -21,6 +21,7 @@ from module import palette, find_dir, parse_labelme, checkCOCO
 categories = ["switch"]
 # 保存数据集中出现的不在允许列表中的标签, 用于最后检查允许列表是否正确
 skip_categories = []
+palette = get_color_map(80)
 
 
 def generate(img_path, seg_path, viz_path=""):

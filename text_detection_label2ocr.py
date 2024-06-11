@@ -5,7 +5,7 @@ import json
 import PIL.Image
 import numpy as np
 from tqdm import tqdm
-from module import palette, find_dir, parse_labelimg, parse_labelme, rectangle_include_point
+from module import get_color_map, find_dir, parse_labelimg, parse_labelme, rectangle_include_point
 
 ##################################################################
 #
@@ -18,6 +18,7 @@ from module import palette, find_dir, parse_labelimg, parse_labelme, rectangle_i
 ##################################################################
 
 generate_anns_check_image = False
+palette = get_color_map(80)
 
 
 def generate_format_label_string(shapes, width, height, relative_path, format="paddle"):
