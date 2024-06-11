@@ -28,7 +28,7 @@ _label_path_test: &_label_path_test data/${task_name}/src/test.txt
 _num_classes: &_num_classes 2
 
 ## train batch size
-_batch_size: &batch_size 64
+_batch_size: &_batch_size 64
 
 ## base learning rate
 # new_lr = (default_base_lr * batch_size * num_gpus) / (default_batch_size * default_num_gpus)
