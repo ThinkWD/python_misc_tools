@@ -38,16 +38,16 @@ def rectangle_include_point(r, p):
 
 
 def get_color_map(num_classes):
-    color_map = [(0, 0, 0) for _ in range(num_classes)]
+    color_map = []
     for i in range(num_classes):
-        j = 0
-        lab = i
+        r, g, b, j, lab = 0, 0, 0, 0, i
         while lab:
-            color_map[i][0] |= ((lab >> 0) & 1) << (7 - j)
-            color_map[i][1] |= ((lab >> 1) & 1) << (7 - j)
-            color_map[i][2] |= ((lab >> 2) & 1) << (7 - j)
+            r |= ((lab >> 0) & 1) << (7 - j)
+            g |= ((lab >> 1) & 1) << (7 - j)
+            b |= ((lab >> 2) & 1) << (7 - j)
             j += 1
             lab >>= 3
+        color_map.append((r, g, b))
     return color_map
 
 
