@@ -6,7 +6,15 @@ import PIL.Image
 import numpy as np
 import pycocotools.mask
 from tqdm import tqdm
-from module import palette, find_dir, parse_labelimg, parse_labelme, checkCOCO, rectangle_include_point
+from module import (
+    get_color_map,
+    find_dir,
+    parse_labelimg,
+    parse_labelme,
+    checkCOCO,
+    rectangle_include_point,
+    shape_to_mask,
+)
 
 ##################################################################
 #
@@ -18,6 +26,32 @@ from module import palette, find_dir, parse_labelimg, parse_labelme, checkCOCO, 
 categories = ["switch"]
 skip_cates = []
 generate_anns_check_image = False
+palette = get_color_map(80)
+
+
+def generate_labelme_check_file(shape, width, height, save_path, save_name):
+    check_json = dict(
+        version='2.3.6',
+        flags={},
+        shapes=[],
+        imagePath=f'{save_name}.jpg',
+        imageData=None,
+        imageHeight=height,
+        imageWidth=width,
+    )
+    element = dict(
+        label='Null',
+        points=shape.tolist(),
+        group_id=None,
+        description="",
+        difficult=False,
+        shape_type='polygon',
+        flags={},
+        attributes={},
+    )
+    check_json['shapes'].append(element)
+    with open(f"{save_path}/{save_name}.json", "w") as f:
+        json.dump(check_json, f, indent=4)
 
 
 # 单个图片
@@ -37,41 +71,42 @@ def generate(img_path, det_path, seg_path, keep_ratio, save_root, save_relative,
     imgs_dict = []
     anns_dict = []
     for idx, (_, box) in enumerate(bbox.items()):
-        # 找到所有在框内的形状, 并为这些形状添加位移和约束
+        # 找到所有在框内的形状, 并为这些形状添加位移 (旋转框不能进行约束)
         box = np.array(box)
         in_shapes = {}
         for instance, shape in shapes.items():
             if not rectangle_include_point(box, centers[instance]):
                 continue
             new_shape = np.asarray(shape).reshape(-1, 2)
-            for p in new_shape:
-                p[0] = max(box[0], min(p[0], box[2]))
-                p[1] = max(box[1], min(p[1], box[3]))
             in_shapes[instance] = new_shape - box[:2]
         if len(in_shapes) == 0:
             continue
         # crop and save crop img
         box_width = int(box[2] - box[0])
         box_height = int(box[3] - box[1])
+        img_length = max(box_width, box_height)
         crop_img = img.crop(box).convert("RGB")
         if keep_ratio:
-            # update params
-            img_length = max(box_width, box_height)
+            # update image
             offset = np.array([max((img_length - box_width) // 2, 0), max((img_length - box_height) // 2, 0)])
-            scale = resize / img_length if resize > img_length else 1
-            box_width = resize if resize > img_length else img_length
-            box_height = resize if resize > img_length else img_length
-            for instance, shape in in_shapes.items():
-                in_shapes[instance] = (shape + offset) * scale
-            # pad and resize image
             temp = PIL.Image.new("RGB", (img_length, img_length), (0, 0, 0))
             temp.paste(crop_img, (offset[0], offset[1]))
-            crop_img = temp.resize((box_width, box_height), PIL.Image.BICUBIC)
+            # set resize
+            scale = resize / img_length if resize > img_length else 1
+            img_length = max(resize, img_length)
+            crop_img = temp.resize((img_length, img_length), PIL.Image.BICUBIC)
+            # update in_shapes and masks
+            for instance, shape in in_shapes.items():
+                in_shapes[instance] = (shape + offset) * scale
+                masks[instance] = shape_to_mask([img_length, img_length], in_shapes[instance], "rotation")
         rel_path = f"dataset/{save_relative}_{idx}.jpg"
         crop_img.save(f"{save_root}/{rel_path}")
         # generate coco label
         anns = []
         for instance, shape in in_shapes.items():
+            generate_labelme_check_file(
+                shape, img_length, img_length, f"{save_root}/dataset_viz", f"{save_relative}_{idx}"
+            )
             shape = np.rint(shape).astype(int).reshape(1, -1).tolist()  # round to int
             label_id = categories.index(instance[0])
             t_mask = masks[instance]
@@ -89,7 +124,7 @@ def generate(img_path, det_path, seg_path, keep_ratio, save_root, save_relative,
                 iscrowd=0,
             )
             anns.append(ann)
-        imgs_dict.append(dict(id=0, file_name=rel_path, width=box_width, height=box_height))
+        imgs_dict.append(dict(id=0, file_name=rel_path, width=img_length, height=img_length))
         anns_dict.append(anns)
         # generate anns check image
         if not generate_anns_check_image:
@@ -100,13 +135,9 @@ def generate(img_path, det_path, seg_path, keep_ratio, save_root, save_relative,
             mask[mask == 0] = 255
             mask[mask == 1] = 128  # 透明度 50 %
             mask = PIL.Image.fromarray(mask, mode="L")
-            mask = mask.crop(box)
-            # crop mask image
-            crop_mask = PIL.Image.new("L", (img_length, img_length), 255)
-            crop_mask.paste(mask, (offset[0], offset[1]))
-            crop_mask = crop_mask.resize((box_width, box_height), PIL.Image.BICUBIC)
-            color_img = PIL.Image.new("RGB", (box_width, box_height), palette[index % 80])
-            crop_img = PIL.Image.composite(crop_img, color_img, crop_mask)
+            # make mask image
+            color_img = PIL.Image.new("RGB", (img_length, img_length), palette[index % 80])
+            crop_img = PIL.Image.composite(crop_img, color_img, mask)
         crop_img.save(f"{save_root}/dataset_viz/{save_relative}_{idx}.jpg")
     return imgs_dict, anns_dict
 
