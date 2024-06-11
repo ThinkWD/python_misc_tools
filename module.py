@@ -24,6 +24,14 @@ def find_dir(path):
     return [item.name for item in os.scandir(path) if item.is_dir()]
 
 
+def find_img(path):
+    return [
+        item.name
+        for item in os.scandir(path)
+        if item.is_file() and item.name.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp'))
+    ]
+
+
 # 判断点 point 是否在矩形 rect 内部. rect: [xmin, ymin, xmax, ymax]
 def rectangle_include_point(r, p):
     return p[0] >= r[0] and p[0] <= r[2] and p[1] >= r[1] and p[1] <= r[3]

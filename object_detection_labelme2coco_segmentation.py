@@ -7,7 +7,7 @@ import PIL.ImageDraw
 import numpy as np
 import pycocotools.mask
 from tqdm import tqdm
-from module import get_color_map, find_dir, parse_labelme, checkCOCO
+from module import get_color_map, find_dir, find_img, parse_labelme, checkCOCO
 
 
 ##################################################################
@@ -91,7 +91,7 @@ def process(root_path, split, all_reserve=0, reserve_no_label=False):
         # img_list
         imgs_dir_path = os.path.join(root_path, dir, "imgs")
         assert os.path.isdir(imgs_dir_path), f"图片文件夹不存在: {imgs_dir_path}"
-        img_list = [f for f in os.listdir(imgs_dir_path) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp'))]
+        img_list = find_img(imgs_dir_path)
         all_reserve_dir = len(img_list) < all_reserve
         not_ann_cnt = 0
         for num, file in enumerate(tqdm(img_list, desc=f"{dir}\t", leave=True, ncols=100, colour="CYAN")):

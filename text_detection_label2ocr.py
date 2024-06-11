@@ -5,7 +5,7 @@ import json
 import PIL.Image
 import numpy as np
 from tqdm import tqdm
-from module import get_color_map, find_dir, parse_labelimg, parse_labelme, rectangle_include_point
+from module import get_color_map, find_dir, find_img, parse_labelimg, parse_labelme, rectangle_include_point
 
 ##################################################################
 #
@@ -133,7 +133,7 @@ def process(root_path, save_dir, split_ratio, keep_ratio):
         # 获取img文件列表
         imgs_dir_path = os.path.join(work_path, dir, "imgs")
         assert os.path.isdir(imgs_dir_path), f"图片文件夹不存在: {imgs_dir_path}"
-        img_list = [f for f in os.listdir(imgs_dir_path) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp'))]
+        img_list = find_img(imgs_dir_path)
         # makedirs
         os.makedirs(os.path.join(save_path, "dataset", dir), exist_ok=True)
         if generate_anns_check_image:

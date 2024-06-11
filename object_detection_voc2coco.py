@@ -4,7 +4,7 @@ import os
 import json
 import PIL.Image
 from tqdm import tqdm
-from module import find_dir, parse_labelimg, checkCOCO
+from module import find_dir, find_img, parse_labelimg, checkCOCO
 
 
 ##################################################################
@@ -67,7 +67,7 @@ def process(root_path, split, all_reserve=0, reserve_no_label=True):
     for dir in find_dir(root_path):
         imgs_dir_path = os.path.join(root_path, dir, "imgs")
         assert os.path.isdir(imgs_dir_path), f"图片文件夹不存在: {imgs_dir_path}"
-        img_list = [f for f in os.listdir(imgs_dir_path) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp'))]
+        img_list = find_img(imgs_dir_path)
         all_reserve_dir = len(img_list) < all_reserve
         not_ann_cnt = 0
         for num, file in enumerate(tqdm(img_list, desc=f"{dir}\t", leave=True, ncols=100, colour="CYAN")):
