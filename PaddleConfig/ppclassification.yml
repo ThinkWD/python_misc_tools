@@ -16,7 +16,7 @@
 #   python3 -m paddle.distributed.launch tools/train.py -c data/${task_name}/${config_name}.yml
 
 ### Export inference model
-#   python3 tools/export_model.py -c data/${task_name}/${config_name}.yml -o Global.pretrained_model=workspace/${task_name}/${config_name}/best_model
+#   python3 tools/export_model.py -c data/${task_name}/${config_name}.yml -o Global.pretrained_model=workspace/${task_name}/PPLCNet_x1_0/best_model
 
 ########################################################################################
 ## dataset root
