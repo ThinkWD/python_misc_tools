@@ -23,7 +23,8 @@ from module import (
 ##################################################################
 
 generate_anns_check_image = False
-color_map = np.asarray(get_color_map(256)).flatten().tolist()
+palette = get_color_map(256)
+color_map = np.asarray(palette).flatten().tolist()
 
 
 def generate(img_path, det_path, seg_path, classes, save_root, save_relative, keep_ratio, resize, format="paddle"):
@@ -73,7 +74,7 @@ def generate(img_path, det_path, seg_path, classes, save_root, save_relative, ke
         crop_img.save(f"{save_root}/{rel_path}.jpg")
         # crop and save crop mask
         label_mask = np.zeros((img_length, img_length), dtype=np.int8)
-        for instance, mask in masks.items():
+        for instance, mask in in_masks.items():
             label_mask[mask] = classes.index(instance[0])
         if label_mask.min() < 0 or label_mask.max() > 255:
             raise Exception(f'[{seg_path}] Cannot save the pixel-wise class label as PNG.')
@@ -87,6 +88,19 @@ def generate(img_path, det_path, seg_path, classes, save_root, save_relative, ke
             anns_dict.append(f"{rel_path}\n")
         else:
             raise Exception("Only support Paddle OCR format and mmlab OCR format")
+        # generate anns check image
+        if not generate_anns_check_image:
+            continue
+        for index, (instance, mask) in enumerate(in_masks.items()):
+            # set mask to image
+            mask = mask.astype(np.uint8)
+            mask[mask == 0] = 255
+            mask[mask == 1] = 128  # 透明度 50 %
+            mask = PIL.Image.fromarray(mask, mode="L")
+            # make mask image
+            color_img = PIL.Image.new("RGB", (img_length, img_length), palette[index % 80])
+            crop_img = PIL.Image.composite(crop_img, color_img, mask)
+        crop_img.save(f"{save_root}/dataset_viz/{save_relative}_{idx}.jpg")
     return anns_dict
 
 
@@ -96,7 +110,7 @@ def process(root_path, save_dir, split_ratio, keep_ratio=True, resize=512, forma
     with open(f"{root_path}/classes.txt", "r", encoding='utf-8') as f:
         classes = [line.strip() for line in f.readlines()]
     assert len(classes) < 255, f"check {root_path}/classes.txt"
-    assert classes[0] == '__ignore__' and classes[1] == '_background_', f"check {root_path}/classes.txt"
+    assert classes[0] == '_background_', f"check {root_path}/classes.txt"
 
     work_path = os.path.join(root_path, "src")
     save_path = os.path.join(root_path, save_dir)

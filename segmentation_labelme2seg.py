@@ -36,8 +36,8 @@ def process(root_path, split_ratio, format="paddle"):
     with open(f"{root_path}/classes.txt", "r", encoding='utf-8') as f:
         class_names = [line.strip() for line in f.readlines()]
     assert len(class_names) < 255, f"check {root_path}/classes.txt"
-    assert class_names[0] == '__ignore__' and class_names[1] == '_background_', f"check {root_path}/classes.txt"
-    class_name_to_id = {name: i - 1 for i, name in enumerate(class_names)}
+    assert class_names[0] == '_background_', f"check {root_path}/classes.txt"
+    class_name_to_id = {name: i for i, name in enumerate(class_names)}
     color_map = np.asarray(get_color_map(len(class_names))).flatten().tolist()
 
     # get path
