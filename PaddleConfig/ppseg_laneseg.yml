@@ -1,10 +1,9 @@
-#  Repositories : https://github.com/PaddlePaddle/PaddleSeg/tree/v2.6.0 (PaddleSeg must be version 2.6.0)
+#  Repositories : https://github.com/ThinkWD/LaneSeg
 #     Task type : Lane detection
 # Preprocessing : segmentation_labelme2seg.py       # generate voc png annotations
 #                 segmentation_labelme2tusimple.py  # generate tusimple annotations
 #   Base config : contrib/LaneSeg/configs/bisenetV2_tusimple_640x368_300k.yml
-#   Information : https://github.com/PaddlePaddle/PaddleSeg/blob/v2.6.0/contrib/LaneSeg/README_CN.md
-#                 PaddleSeg must be version 2.6.0
+#   Information : https://github.com/PaddlePaddle/PaddleSeg/blob/v2.5.0/contrib/LaneSeg/README_CN.md
 
 ### Before training
 #   1. replace ${task_name} and ${config_name}
@@ -12,25 +11,25 @@
 #   3. set _num_classes (including background)
 #   4. set _batch_size
 #   5. set _learning_rate
-#   6. PaddleSeg must be version 2.6.0
-#   7. All image must be 1920 * 1080 (cut_height, offset_top, target_size)
-#   8. loss - weights size must be equal to _num_classes
+#   6. All image must be 1920 * 1080 (cut_height, offset_top, target_size)
+#   7. loss - weights size must be equal to _num_classes
 
-### Start training  ## PaddleSeg must be version 2.6.0
-#   cd contrib/LaneSeg
-#   python3 train.py -c data/${task_name}/${config_name}.yml --do_eval --use_vdl --save_interval 500 --num_workers 5 --save_dir workspace/pidai
+### Start training
+#   cd LaneSeg
+#   export FLAGS_set_to_1d=False
+#   python3 train.py --config data/${task_name}/${config_name}.yml --do_eval --use_vdl --save_interval 500 --num_workers 5 --save_dir workspace/${task_name}
 
-### Visual prediction  ## PaddleSeg must be version 2.6.0
-#   cd contrib/LaneSeg
-#   python3 predict.py -c data/${task_name}/${config_name}.yml --model_path workspace/${task_name}/best_model/model.pdparams --image_path data/${task_name}/src/test.txt --save_dir workspace/${task_name}/predict
+### Visual prediction
+#   cd LaneSeg
+#   python3 predict.py --config data/${task_name}/${config_name}.yml --model_path workspace/${task_name}/best_model/model.pdparams --image_path data/${task_name}/src/test.txt --save_dir workspace/${task_name}/predict
 
-### Export inference model  ## PaddleSeg must be version 2.6.0
-#   cd contrib/LaneSeg
-#   python3 export_model.py -c data/${task_name}/${config_name}.yml --input_shape 1 3 512 512 --model_path workspace/${task_name}/best_model/model.pdparams --save_dir workspace/${task_name}/inference
+### Export inference model
+#   cd LaneSeg
+#   python3 export_model.py --config data/${task_name}/${config_name}.yml --input_shape 1 3 512 512 --model_path workspace/${task_name}/best_model/model.pdparams --save_dir workspace/${task_name}/inference
 
 ########################################################################################
 ## dataset root
-_dataset_root: &_dataset_root data/${task_name}/src
+_dataset_root: &_dataset_root data/${task_name}/src/
 
 ## number of classes
 _num_classes: &_num_classes 5
