@@ -20,7 +20,7 @@ from module import get_color_map, find_dir, find_img, parse_labelme, checkCOCO
 # 生成的数据集允许的标签列表
 categories = ["switch"]
 # 保存数据集中出现的不在允许列表中的标签, 用于最后检查允许列表是否正确
-skip_categories = []
+skip_categories = set()
 palette = get_color_map(80)
 
 
@@ -38,8 +38,7 @@ def generate(img_path, seg_path, viz_path=""):
     for instance, mask in masks.items():
         label = instance[0]
         if label not in categories:
-            if label not in skip_categories:
-                skip_categories.append(label)
+            skip_categories.add(label)
             continue
         label_id = categories.index(label)
         a_mask = np.asfortranarray(mask.astype(np.uint8))  # 将 mask 转为 Fortran 无符号整数数组

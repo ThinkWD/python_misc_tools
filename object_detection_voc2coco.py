@@ -35,8 +35,7 @@ def generate(img_path, det_path):
     for instance, box in bbox_dict.items():
         label = instance[0]
         if label not in categories:
-            if label not in skip_categories:
-                skip_categories.append(label)
+            skip_categories.add(label)
             continue
         label_id = categories.index(label)
         box_w = box[2] - box[0]

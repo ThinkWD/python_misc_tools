@@ -16,8 +16,6 @@ from tqdm import tqdm
 
 
 change_list = {"D000": "D000", "D001": "D001", "P000": "P000", "P001": "P001"}  # 指针仪表
-# 数据集中出现的不在允许列表中的标签
-skip_categories = []
 
 
 # 取出 xml 内容 (length 预期长度, 为 0 则不检查)
