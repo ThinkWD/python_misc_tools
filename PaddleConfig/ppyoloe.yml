@@ -78,7 +78,7 @@ TestDataset:
 ### Base config : configs/ppyoloe/ppyoloe_plus_crn_s_80e_coco.yml
 log_iter: 20
 snapshot_epoch: 5
-weights: workspace/${task_name}best_model.pdparams
+weights: workspace/${task_name}/best_model.pdparams
 pretrain_weights: https://bj.bcebos.com/v1/paddledet/models/pretrained/ppyoloe_crn_s_obj365_pretrained.pdparams
 depth_mult: 0.33
 width_mult: 0.50
