@@ -23,7 +23,7 @@ palette = get_color_map(80)
 
 def generate_format_label_string(shapes, width, height, relative_path, format="paddle"):
     if format == "paddle":
-        anns = [{"transcription": id[0], "points": np.asarray(shape).tolist()} for id, shape in shapes.items()]
+        anns = [{"transcription": "yes", "points": np.asarray(shape).tolist()} for id, shape in shapes.items()]
         result = f"{relative_path}\t{json.dumps(anns, ensure_ascii=False)}\n"
 
     elif format == "mmlab":
