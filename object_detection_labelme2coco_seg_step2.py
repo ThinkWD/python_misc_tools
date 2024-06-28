@@ -13,8 +13,8 @@ from module import (
     parse_labelimg,
     parse_labelme,
     checkCOCO,
-    rectangle_include_point,
     shape_to_mask,
+    get_matching_pairs,
 )
 
 ##################################################################
@@ -67,21 +67,16 @@ def generate(img_path, det_path, seg_path, keep_ratio, save_root, save_relative,
     masks, shapes = parse_labelme(seg_path, img_width, img_height)
     skip_cates.extend([id[0] for id, _ in shapes.items() if id[0] not in categories and id[0] not in skip_cates])
     shapes = {instance: shape for instance, shape in shapes.items() if instance[0] in categories}
-    centers = {instance: np.asarray(shape).mean(axis=0) for instance, shape in shapes.items()}
+    # get box shapes pairs
+    pairs = get_matching_pairs(seg_path, bbox, shapes)
+    if len(pairs) == 0:
+        return []
     # generate anns
     imgs_dict = []
     anns_dict = []
-    for idx, (_, box) in enumerate(bbox.items()):
-        # 找到所有在框内的形状, 并为这些形状添加位移 (旋转框不能进行约束)
-        box = np.array(box)
-        in_shapes = {}
-        for instance, shape in shapes.items():
-            if not rectangle_include_point(box, centers[instance]):
-                continue
-            new_shape = np.asarray(shape).reshape(-1, 2)
-            in_shapes[instance] = new_shape - box[:2]
-        if len(in_shapes) == 0:
-            continue
+    for idx, (box_instance, shape_instances) in enumerate(pairs.items()):
+        box = np.array(bbox[box_instance])
+        in_shapes = {instance: np.asarray(shapes[instance]).reshape(-1, 2) - box[:2] for instance in shape_instances}
         # crop and save crop img
         box_width = int(box[2] - box[0])
         box_height = int(box[3] - box[1])

@@ -5,15 +5,7 @@ import numpy as np
 import PIL.Image
 import PIL.ImageDraw
 from tqdm import tqdm
-from module import (
-    get_color_map,
-    find_dir,
-    find_img,
-    parse_labelimg,
-    parse_labelme,
-    shape_to_mask,
-    get_matching_pairs,
-)
+from module import get_color_map, find_dir, find_img, parse_labelimg, parse_labelme, shape_to_mask, get_matching_pairs
 
 
 ##################################################################
