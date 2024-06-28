@@ -13,10 +13,10 @@ from tqdm import tqdm
 
 ##################################################################
 #
-#   !!!!!!!!!!!!!!! 此文件可能已经过时, 需要更新以适配最新版本 !!!!!!!!!!!!!!
-#
 #   此文件用于测试文本识别模型
 #   它会遍历数据集中的图片及其对应标签文本, 对比识别结果与标签文本, 将不匹配的条目保存下来
+#
+#   # build model 部分已适配 paddocr 2.7.0 版本
 #
 ##################################################################
 
@@ -44,29 +44,41 @@ def inference():
     # build model
     if hasattr(post_process_class, 'character'):
         char_num = len(getattr(post_process_class, 'character'))
-        # distillation model
-        if config['Architecture']["algorithm"] in [
-            "Distillation",
-        ]:
-            for key in config['Architecture']["Models"]:
-                if config['Architecture']['Models'][key]['Head']['name'] == 'MultiHead':  # for multi head
+        if config["Architecture"]["algorithm"] in ["Distillation",
+                                                   ]:  # distillation model
+            for key in config["Architecture"]["Models"]:
+                if config["Architecture"]["Models"][key]["Head"][
+                        "name"] == 'MultiHead':  # multi head
                     out_channels_list = {}
-                    if config['PostProcess']['name'] == 'DistillationSARLabelDecode':
+                    if config['PostProcess'][
+                            'name'] == 'DistillationSARLabelDecode':
                         char_num = char_num - 2
+                    if config['PostProcess'][
+                            'name'] == 'DistillationNRTRLabelDecode':
+                        char_num = char_num - 3
                     out_channels_list['CTCLabelDecode'] = char_num
                     out_channels_list['SARLabelDecode'] = char_num + 2
-                    config['Architecture']['Models'][key]['Head']['out_channels_list'] = out_channels_list
+                    out_channels_list['NRTRLabelDecode'] = char_num + 3
+                    config['Architecture']['Models'][key]['Head'][
+                        'out_channels_list'] = out_channels_list
                 else:
-                    config['Architecture']["Models"][key]["Head"]['out_channels'] = char_num
-        elif config['Architecture']['Head']['name'] == 'MultiHead':  # for multi head loss
+                    config["Architecture"]["Models"][key]["Head"][
+                        "out_channels"] = char_num
+        elif config['Architecture']['Head'][
+                'name'] == 'MultiHead':  # multi head
             out_channels_list = {}
+            char_num = len(getattr(post_process_class, 'character'))
             if config['PostProcess']['name'] == 'SARLabelDecode':
                 char_num = char_num - 2
+            if config['PostProcess']['name'] == 'NRTRLabelDecode':
+                char_num = char_num - 3
             out_channels_list['CTCLabelDecode'] = char_num
             out_channels_list['SARLabelDecode'] = char_num + 2
-            config['Architecture']['Head']['out_channels_list'] = out_channels_list
+            out_channels_list['NRTRLabelDecode'] = char_num + 3
+            config['Architecture']['Head'][
+                'out_channels_list'] = out_channels_list
         else:  # base rec model
-            config['Architecture']["Head"]['out_channels'] = char_num
+            config["Architecture"]["Head"]["out_channels"] = char_num
     model = build_model(config['Architecture'])
     load_model(config, model)
 
@@ -111,7 +123,7 @@ def inference():
         for line in tqdm(fread, total=total_fread, leave=True, ncols=120, colour="CYAN"):
             line = line.strip().split('\t')
             img_path = os.path.join(root_path, line[0])
-            with open(img_path, 'rb', encoding='utf-8') as f:
+            with open(img_path, 'rb') as f:
                 img = f.read()
                 data = {'image': img}
             batch = transform(data, ops)
