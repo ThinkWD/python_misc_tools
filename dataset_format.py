@@ -18,8 +18,13 @@ import xml.etree.ElementTree as ET
 #
 ##################################################################
 
+# 是否启用重命名图片及标签文件功能
+enable_rename = True
+name_offset = 0
 
-offset = 0
+# 是否启用 resize 图片及标签文件功能
+enable_resize = True
+target_size = (0, 0)
 
 
 def getXmlValue(root, name, length):
@@ -35,7 +40,7 @@ def getXmlValue(root, name, length):
 def pipeline_det(ann_path, dst_path, raw_size, target_size):
     if not os.path.isfile(ann_path):
         return
-    if raw_size == target_size:
+    if target_size[0] == 0 or target_size[1] == 0 or raw_size == target_size:
         shutil.copy(ann_path, dst_path)
         return
     try:
@@ -72,7 +77,7 @@ def pipeline_seg(ann_path, dst_path, relative_path, raw_size, target_size):
         data = json.load(file_in)
     data["imageData"] = None
     data["imagePath"] = relative_path
-    if raw_size != target_size:
+    if target_size[0] > 0 and target_size[1] > 0 and raw_size != target_size:
         data["imageWidth"] = target_size[0]
         data["imageHeight"] = target_size[1]
         x_scale = target_size[0] / raw_size[0]
@@ -88,7 +93,7 @@ def pipeline_seg(ann_path, dst_path, relative_path, raw_size, target_size):
 def pipeline_image(src_path, dst_path, target_size):
     image = PIL.Image.open(src_path)
     image_size = image.size
-    if image_size != target_size:
+    if target_size[0] > 0 and target_size[1] > 0 and image_size != target_size:
         image = image.resize(target_size, PIL.Image.BICUBIC)
         image.save(dst_path)
     else:
@@ -96,7 +101,7 @@ def pipeline_image(src_path, dst_path, target_size):
     return image_size
 
 
-def pipeline(root_path, target_size=(0, 0)):
+def pipeline(root_path):
     # dynamic set imgdir
     dirlist = [it.name for it in os.scandir(root_path) if it.is_dir() and it.name.startswith("imgs_lv")]
     imgdir = "imgs" if len(dirlist) == 0 else dirlist[0]
@@ -112,16 +117,20 @@ def pipeline(root_path, target_size=(0, 0)):
     # get images list
     imgs_list = [f for f in os.listdir(f"{root_path}/{imgdir}") if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
     assert len(imgs_list) > 0, "图片文件夹下没有图片"
-    if target_size[0] == 0 or target_size[1] == 0:
-        first_image = PIL.Image.open(f"{root_path}/{imgdir}/{imgs_list[0]}")
-        target_size = first_image.size
-    print(f"\n >> target_size: {target_size}\n")
+    # get resize target size
+    if not enable_resize:
+        target_size = (0, 0)
+    else:
+        if target_size[0] == 0 or target_size[1] == 0:
+            first_image = PIL.Image.open(f"{root_path}/{imgdir}/{imgs_list[0]}")
+            target_size = first_image.size
+        print(f"\n >> target_size: {target_size}\n")
     # prosess
     resize_count = 0
-    namebit = 6 if len(imgs_list) + offset > 9999 else 4
+    namebit = 6 if len(imgs_list) + name_offset > 9999 else 4
     for idx, file in enumerate(tqdm(imgs_list, leave=True, ncols=100, colour="CYAN")):
         raw_name, extension = os.path.splitext(file)
-        out_name = str(idx + offset).zfill(namebit)
+        out_name = str(idx + name_offset).zfill(namebit) if enable_rename else raw_name
         # image
         img_src = f"{root_path}/{imgdir}/{file}"
         img_dst = f"{root_path}/format/imgs/{out_name}{extension}"
