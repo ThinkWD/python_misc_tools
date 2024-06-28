@@ -144,6 +144,14 @@ def shape_to_mask(img_shape, points, shape_type=None, line_width=10, point_size=
         d = math.sqrt((cx - px) ** 2 + (cy - py) ** 2)
         draw.ellipse([cx - d, cy - d, cx + d, cy + d], outline=1, fill=1)
     elif shape_type == "rectangle":
+        if (
+            len(xy) == 4
+            and xy[0][0] == xy[3][0]
+            and xy[1][0] == xy[2][0]
+            and xy[0][1] == xy[1][1]
+            and xy[2][1] == xy[3][1]
+        ):
+            xy = [tuple(xy[0]), tuple(xy[2])]
         assert len(xy) == 2, "Shape of shape_type=rectangle must have 2 points"
         draw.rectangle(xy, outline=1, fill=1)
     elif shape_type == "line":
@@ -196,10 +204,19 @@ def parse_labelme(
         masks[instance] = masks[instance] | mask if instance in masks else mask
         # points convert
         if shape_type == "rectangle":  # 矩形将两个对角点转换为四个顶点
-            (x1, y1), (x2, y2) = points
-            x1, x2 = sorted([x1, x2])
-            y1, y2 = sorted([y1, y2])
-            points = [x1, y1, x2, y1, x2, y2, x1, y2]
+            assert len(points) == 2 or len(points) == 4, f"{seg_path}: Shape of rectangle must have 2 or 4 points"
+            if len(points) == 2:
+                (x1, y1), (x2, y2) = points
+                x1, x2 = sorted([x1, x2])
+                y1, y2 = sorted([y1, y2])
+                points = [x1, y1, x2, y1, x2, y2, x1, y2]
+            elif len(points) == 4:
+                assert (
+                    points[0][0] == points[3][0]
+                    and points[1][0] == points[2][0]
+                    and points[0][1] == points[1][1]
+                    and points[2][1] == points[3][1]
+                ), f"{seg_path}: Shape of shape_type=rectangle is invalid box"
         elif shape_type == "circle":  # 圆形根据圆心和半径，生成一个多边形的点坐标。
             (x1, y1), (x2, y2) = points
             r = np.linalg.norm([x2 - x1, y2 - y1])
