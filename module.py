@@ -62,6 +62,33 @@ def getXmlValue(root, name, length):
     return XmlValue
 
 
+# box (list): [xmin, ymin, xmax, ymax]
+def calculate_iou(box1, box2):
+    intersection_w = max(0, min(box1[2], box2[2]) - max(box1[0], box2[0]))
+    intersection_h = max(0, min(box1[3], box2[3]) - max(box1[1], box2[1]))
+    intersection_area = intersection_w * intersection_h
+    box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
+    box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
+    union_area = box1_area + box2_area - intersection_area
+    return intersection_area / union_area
+
+
+# nms
+def non_maximum_suppression(bboxes, iou_threshold=0.25):
+    sorted_bboxes = sorted(bboxes.items(), key=lambda x: x[1][2] * x[1][3], reverse=True)
+    selected_bboxes = {}
+    while sorted_bboxes:
+        instance, box = sorted_bboxes.pop(0)
+        selected_bboxes[instance] = box
+        remaining_bboxes = []
+        for other_instance, other_box in sorted_bboxes:
+            iou = calculate_iou(box, other_box)
+            if iou < iou_threshold:
+                remaining_bboxes.append((other_instance, other_box))
+        sorted_bboxes = remaining_bboxes
+    return selected_bboxes
+
+
 # 解析单个 labelimg 标注文件(xml)
 def parse_labelimg(det_path, img_width, img_height):
     if not os.path.isfile(det_path):
@@ -84,6 +111,9 @@ def parse_labelimg(det_path, img_width, img_height):
             ymax = round(float(getXmlValue(bndbox, "ymax", 1).text))
             assert xmax > xmin and ymax > ymin and xmax <= img_width and ymax <= img_height, f"{det_path}"
             bbox[(name, uuid.uuid1())] = [xmin, ymin, xmax, ymax]
+        sorted_bboxes = non_maximum_suppression(bbox)
+        if len(bbox) != len(sorted_bboxes):
+            print(f"\n labelimg 标注出现重叠框: {det_path}\n")
     except Exception as e:
         raise Exception(f"Failed to parse XML file: {det_path}, {e}")
     return bbox
@@ -188,3 +218,51 @@ def parse_labelme(
     shapes = dict(shapes)
 
     return masks, shapes
+
+
+def query_labelme_flags(seg_path):
+    with open(seg_path, "r", encoding="utf-8") as file:
+        data = json.load(file)
+    flags = data.get("flags", {})
+    return flags.get("Ignoring_matching_errors", False)
+
+
+def set_labelme_flags(seg_path):
+    with open(seg_path, "r", encoding="utf-8") as file:
+        data = json.load(file)
+    data.setdefault("flags", {})
+    data["flags"]["Ignoring_matching_errors"] = True
+    with open(seg_path, 'w', encoding="utf-8") as file:
+        json.dump(data, file, indent=4)
+
+
+def get_matching_pairs(seg_path, bbox, shapes):
+    pairs = {}
+    selected_shapes = set()
+    centers = {instance: np.asarray(shape).reshape(-1, 2).mean(axis=0) for instance, shape in shapes.items()}
+    for box_instance, box in bbox.items():
+        matching_shapes = []
+        for shape_instance, _ in shapes.items():
+            if shape_instance in selected_shapes or not rectangle_include_point(box, centers[shape_instance]):
+                continue
+            selected_shapes.add(shape_instance)
+            matching_shapes.append(shape_instance)
+        if len(matching_shapes) > 0:
+            pairs[box_instance] = matching_shapes
+    if (len(bbox) != len(pairs) or len(shapes) != len(selected_shapes)) and not query_labelme_flags(seg_path):
+        print(
+            f"\nIncorrect annotation file: {seg_path}\nlen(bbox): {len(bbox)}, len(pairs): {len(pairs)}, "
+            f"len(shapes): {len(shapes)}, len(selected_shapes): {len(selected_shapes)}"
+        )
+        for box_instance, box in bbox.items():
+            if box_instance not in pairs:
+                print(f"box: {box}")
+        for shape_instance, shape in shapes.items():
+            if shape_instance not in selected_shapes:
+                print(f"shape: {centers[shape_instance]}, {np.rint(shape).astype(int).tolist()}")
+        print("\nEnter [Y/N] to choose to keep/discard the annotations for this file: ")
+        user_input = input().lower()
+        if user_input != "y":
+            return {}
+        set_labelme_flags(seg_path)
+    return pairs
