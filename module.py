@@ -237,23 +237,41 @@ def parse_labelme(
     return masks, shapes
 
 
-def query_labelme_flags(seg_path):
+def query_labelme_flags(seg_path, flag):
     with open(seg_path, "r", encoding="utf-8") as file:
         data = json.load(file)
     flags = data.get("flags", {})
-    return flags.get("Ignoring_matching_errors", False)
+    return flags.get(flag, False)
 
 
-def set_labelme_flags(seg_path):
+def set_labelme_flags(seg_path, flag):
     with open(seg_path, "r", encoding="utf-8") as file:
         data = json.load(file)
     data.setdefault("flags", {})
-    data["flags"]["Ignoring_matching_errors"] = True
+    data["flags"][flag] = True
     with open(seg_path, 'w', encoding="utf-8") as file:
         json.dump(data, file, indent=4)
 
 
-def get_matching_pairs(seg_path, bbox, shapes):
+def get_matching_pairs(seg_path, bbox, shapes, check_no_rotation=False):
+    # [Warning] no rotation
+    if check_no_rotation:
+        for _, xy in shapes.items():
+            if (
+                len(xy) == 4
+                and xy[0][0] == xy[3][0]
+                and xy[1][0] == xy[2][0]
+                and xy[0][1] == xy[1][1]
+                and xy[2][1] == xy[3][1]
+                and not query_labelme_flags(seg_path, "Ignoring_no_rotation_warning")
+            ):
+                print(f"\n[Warning] no rotation: {seg_path}")
+                print("\nEnter [Y/N] to choose to keep/discard the annotations for this file: ")
+                user_input = input().lower()
+                if user_input != "y":
+                    return {}
+                set_labelme_flags(seg_path, "Ignoring_no_rotation_warning")
+    # get_matching_pairs
     pairs = {}
     selected_shapes = set()
     centers = {instance: np.asarray(shape).reshape(-1, 2).mean(axis=0) for instance, shape in shapes.items()}
@@ -266,9 +284,12 @@ def get_matching_pairs(seg_path, bbox, shapes):
             matching_shapes.append(shape_instance)
         if len(matching_shapes) > 0:
             pairs[box_instance] = matching_shapes
-    if (len(bbox) != len(pairs) or len(shapes) != len(selected_shapes)) and not query_labelme_flags(seg_path):
+    # [Error] matching pairs
+    if (len(bbox) != len(pairs) or len(shapes) != len(selected_shapes)) and not query_labelme_flags(
+        seg_path, "Ignoring_matching_errors"
+    ):
         print(
-            f"\nIncorrect annotation file: {seg_path}\nlen(bbox): {len(bbox)}, len(pairs): {len(pairs)}, "
+            f"\n[Error] matching pairs: {seg_path}\nlen(bbox): {len(bbox)}, len(pairs): {len(pairs)}, "
             f"len(shapes): {len(shapes)}, len(selected_shapes): {len(selected_shapes)}"
         )
         for box_instance, box in bbox.items():
@@ -281,5 +302,5 @@ def get_matching_pairs(seg_path, bbox, shapes):
         user_input = input().lower()
         if user_input != "y":
             return {}
-        set_labelme_flags(seg_path)
+        set_labelme_flags(seg_path, "Ignoring_matching_errors")
     return pairs
