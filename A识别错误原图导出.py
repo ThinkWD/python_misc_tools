@@ -22,6 +22,7 @@ def process(root_path):
     res_path = os.path.join(root_path, "result")
     assert os.path.isdir(res_path), f"结果文件夹不存在: {res_path}"
     exp_path = os.path.join(root_path, "export")
+    assert not os.path.isdir(exp_path), f"上次的导出文件夹未移动或删除: {exp_path}"
     os.makedirs(exp_path)
     raw_img_dict = {
         name: it.name
