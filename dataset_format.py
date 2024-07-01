@@ -118,13 +118,14 @@ def pipeline(root_path):
     imgs_list = [f for f in os.listdir(f"{root_path}/{imgdir}") if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
     assert len(imgs_list) > 0, "图片文件夹下没有图片"
     # get resize target size
-    if not enable_resize:
-        target_size = (0, 0)
-    else:
-        if target_size[0] == 0 or target_size[1] == 0:
+    resize_target_size = (0, 0)
+    if enable_resize:
+        if target_size[0] > 0 and target_size[1] > 0:
+            resize_target_size = target_size
+        else:
             first_image = PIL.Image.open(f"{root_path}/{imgdir}/{imgs_list[0]}")
-            target_size = first_image.size
-        print(f"\n >> target_size: {target_size}\n")
+            resize_target_size = first_image.size
+        print(f"\n >> resize_target_size: {resize_target_size}\n")
     # prosess
     resize_count = 0
     namebit = 6 if len(imgs_list) + name_offset > 9999 else 4
@@ -134,17 +135,17 @@ def pipeline(root_path):
         # image
         img_src = f"{root_path}/{imgdir}/{file}"
         img_dst = f"{root_path}/format/imgs/{out_name}{extension}"
-        image_size = pipeline_image(img_src, img_dst, target_size)
-        resize_count += image_size != target_size
+        image_size = pipeline_image(img_src, img_dst, resize_target_size)
+        resize_count += image_size != resize_target_size
         # ann det
         det_src = f"{root_path}/anns/{raw_name}.xml"
         det_dst = f"{root_path}/format/anns/{out_name}.xml"
-        pipeline_det(det_src, det_dst, image_size, target_size)
+        pipeline_det(det_src, det_dst, image_size, resize_target_size)
         # ann seg
         seg_src = f"{root_path}/anns_seg/{raw_name}.json"
         seg_dst = f"{root_path}/format/anns_seg/{out_name}.json"
         seg_relative = f"../imgs/{out_name}{extension}"
-        pipeline_seg(seg_src, seg_dst, seg_relative, image_size, target_size)
+        pipeline_seg(seg_src, seg_dst, seg_relative, image_size, resize_target_size)
 
     print(f"\n\033[1;33m[Warning] 被缩放的图片数量: \033[0m{resize_count}")
 
