@@ -12,7 +12,7 @@
 #   4. set _learning_rate
 
 ### Start training
-#   python3 -m paddle.distributed.launch tools/train.py -c data/${task_name}/${config_name}.yml
+#   python3 tools/train.py -c data/${task_name}/${config_name}.yml
 
 ### Visual prediction
 #   python3 tools/infer_det.py -c data/${task_name}/${config_name}.yml -o Global.pretrained_model=workspace/${config_name}/best_accuracy Global.infer_img="data/test.jpg"
@@ -23,8 +23,8 @@
 ########################################################################################
 ## dataset root
 _dataset_root: &_dataset_root data/${task_name}/src
-_label_path_train: &_label_path_train data/${task_name}/src/train.json
-_label_path_test: &_label_path_test data/${task_name}/src/test.json
+_label_path_train: &_label_path_train data/${task_name}/src/train.txt
+_label_path_test: &_label_path_test data/${task_name}/src/test.txt
 
 ## train batch size
 _batch_size: &_batch_size 16
@@ -38,6 +38,7 @@ _learning_rate: &_learning_rate 0.00025
 Global:
   debug: false
   use_gpu: true
+  epoch: 0
   epoch_num: &epoch_num 80
   log_smooth_window: 20
   print_batch_step: 20
@@ -104,7 +105,7 @@ Train:
   dataset:
     name: SimpleDataSet
     data_dir: *_dataset_root
-    label_file_list: *_label_path_train
+    label_file_list: [*_label_path_train]
     ratio_list: [1.0]
     transforms:
     - DecodeImage:
@@ -129,8 +130,8 @@ Train:
             - 3
     - EastRandomCropData:
         size:
-        - 640
-        - 640
+        - 512
+        - 512
         max_tries: 50
         keep_ratio: true
     - MakeBorderMap:
@@ -171,7 +172,7 @@ Eval:
   dataset:
     name: SimpleDataSet
     data_dir: *_dataset_root
-    label_file_list: *_label_path_test
+    label_file_list: [*_label_path_test]
     transforms:
     - DecodeImage:
         img_mode: BGR
