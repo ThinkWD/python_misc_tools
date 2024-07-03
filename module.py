@@ -258,14 +258,14 @@ def get_matching_pairs(seg_path, bbox, shapes, check_no_rotation=False):
     if check_no_rotation:
         for _, xy in shapes.items():
             if (
-                len(xy) == 4
-                and xy[0][0] == xy[3][0]
-                and xy[1][0] == xy[2][0]
-                and xy[0][1] == xy[1][1]
-                and xy[2][1] == xy[3][1]
+                len(xy[0]) == 8
+                and xy[0][0] == xy[0][6]
+                and xy[0][2] == xy[0][4]
+                and xy[0][1] == xy[0][3]
+                and xy[0][5] == xy[0][7]
                 and not query_labelme_flags(seg_path, "Ignoring_no_rotation_warning")
             ):
-                print(f"\n[Warning] no rotation: {seg_path}")
+                print(f"\n\033[1;33m[Warning] no rotation: {seg_path}\033[0m")
                 print("\nEnter [Y/N] to choose to keep/discard the annotations for this file: ")
                 user_input = input().lower()
                 if user_input != "y":
@@ -289,8 +289,8 @@ def get_matching_pairs(seg_path, bbox, shapes, check_no_rotation=False):
         seg_path, "Ignoring_matching_errors"
     ):
         print(
-            f"\n[Error] matching pairs: {seg_path}\nlen(bbox): {len(bbox)}, len(pairs): {len(pairs)}, "
-            f"len(shapes): {len(shapes)}, len(selected_shapes): {len(selected_shapes)}"
+            f"\n\033[1;31m[Error] matching pairs: {seg_path}\nlen(bbox): {len(bbox)}, len(pairs): {len(pairs)}, "
+            f"len(shapes): {len(shapes)}, len(selected_shapes): {len(selected_shapes)}\033[0m"
         )
         for box_instance, box in bbox.items():
             if box_instance not in pairs:

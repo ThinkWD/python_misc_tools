@@ -30,7 +30,7 @@ def generate(img_path, det_path, seg_path, classes, save_root, save_relative, ke
     masks, shapes = parse_labelme(seg_path, img_width, img_height)
     shapes = {instance: shape for instance, shape in shapes.items() if instance[0] in classes}
     # get box shapes pairs
-    pairs = get_matching_pairs(seg_path, bbox, shapes)
+    pairs = get_matching_pairs(seg_path, bbox, shapes, True)
     if len(pairs) == 0:
         return []
     # generate anns
