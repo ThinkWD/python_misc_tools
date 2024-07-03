@@ -79,7 +79,8 @@ def process(root_path, split, all_reserve=0, reserve_no_label=False):
     # 遍历脚本所在目录下的子文件夹
     for dir in find_dir(root_path):
         imgs_dir_path = os.path.join(root_path, dir, "imgs")
-        assert os.path.isdir(imgs_dir_path), f"图片文件夹不存在: {imgs_dir_path}"
+        if not os.path.isdir(imgs_dir_path):
+            continue
         img_list = find_img(imgs_dir_path)
         all_reserve_dir = len(img_list) < all_reserve
         not_ann_cnt = 0

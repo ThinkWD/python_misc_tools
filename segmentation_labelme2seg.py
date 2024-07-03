@@ -53,7 +53,8 @@ def process(root_path, split_ratio, format="paddle"):
         os.makedirs(os.path.join(pngs_path, dir), exist_ok=True)
         # 获取img文件列表
         imgs_dir_path = os.path.join(imgs_path, dir)
-        assert os.path.isdir(imgs_dir_path), f"图片文件夹不存在: {imgs_dir_path}"
+        if not os.path.isdir(imgs_dir_path):
+            continue
         imgs_list = find_img(imgs_dir_path)
         # 遍历图片列表
         for file in tqdm(imgs_list, desc=f"{dir}\t", leave=True, ncols=100, colour="CYAN"):

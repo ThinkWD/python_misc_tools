@@ -109,7 +109,8 @@ def process(root_path, save_dir, split_ratio, keep_ratio=True, resize=512, forma
     for dir in find_dir(work_path):
         # 获取img文件列表
         imgs_dir_path = os.path.join(work_path, dir, "imgs")
-        assert os.path.isdir(imgs_dir_path), f"图片文件夹不存在: {imgs_dir_path}"
+        if not os.path.isdir(imgs_dir_path):
+            continue
         imgs_list = find_img(imgs_dir_path)
         # makedirs
         os.makedirs(os.path.join(save_path, "dataset", dir), exist_ok=True)

@@ -42,7 +42,8 @@ def process_rotate(root_path):
             continue
         # 获取img文件列表
         imgs_dir_path = os.path.join(imgs_path, dir)
-        assert os.path.isdir(imgs_dir_path), f"图片文件夹不存在: {imgs_dir_path}"
+        if not os.path.isdir(imgs_dir_path):
+            continue
         imgs_list = find_img(imgs_dir_path)
         # makedirs
         prefix = f"{dir[:-1]}rotated"
