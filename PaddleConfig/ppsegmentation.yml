@@ -30,19 +30,20 @@ _label_path_train: &_label_path_train data/${task_name}/src/train.txt
 _label_path_test: &_label_path_test data/${task_name}/src/test.txt
 
 ## number of classes
-_num_classes: &_num_classes 3
+_num_classes: &_num_classes 2
 
 ## train batch size
-_batch_size: &_batch_size 16
+_batch_size: &_batch_size 8
 
 ## base learning rate
 # new_lr = (default_base_lr * batch_size * num_gpus) / (default_batch_size * default_num_gpus)
 # new_lr = (0.01 * batch_size * num_gpus) / (6 * 4)
-_learning_rate: &_learning_rate 0.01
+_learning_rate: &_learning_rate 0.003
 
 #### >>>>> global <<<<< ######################################
 _base_: '../../configs/pp_liteseg/pp_liteseg_stdc2_camvid_960x720_10k.yml'
 
+iters: 10000
 batch_size: *_batch_size
 
 train_dataset:

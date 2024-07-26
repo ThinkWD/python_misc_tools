@@ -137,5 +137,5 @@ def process(root_path, save_dir, split_ratio, keep_ratio=True, resize=512, forma
 
 # Reference: https://github.com/wkentaro/labelme/blob/main/examples/semantic_segmentation/labelme2voc.py
 if __name__ == "__main__":
-    process(os.getcwd(), "dataset", 5)
+    process(os.getcwd(), "dataset_seg", 5)
     print("\nAll process success\n")

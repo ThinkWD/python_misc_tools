@@ -153,5 +153,5 @@ def process(root_path, save_dir, split_ratio, keep_ratio):
 
 
 if __name__ == "__main__":
-    process(os.getcwd(), "dataset", 5, True)
+    process(os.getcwd(), "dataset_seg", 5, True)
     print("\nAll process success\n")
