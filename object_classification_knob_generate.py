@@ -29,19 +29,19 @@ def find_img(path):
 
 def generate(img_path, img_name, save_root, save_relative):
     # 未翻转
-    flip_0 = os.path.join(save_relative, "flip_0", img_name)
+    flip_0 = os.path.join(save_relative, "flip_0", img_name).replace('\\', '/')
     image = PIL.Image.open(os.path.join(img_path, img_name))
     image.save(os.path.join(save_root, flip_0))
     # 沿 x 轴翻转
-    flip_1 = os.path.join(save_relative, "flip_1", img_name)
+    flip_1 = os.path.join(save_relative, "flip_1", img_name).replace('\\', '/')
     temp = PIL.ImageOps.mirror(image)
     temp.save(os.path.join(save_root, flip_1))
     # 沿 y 轴翻转
-    flip_2 = os.path.join(save_relative, "flip_2", img_name)
+    flip_2 = os.path.join(save_relative, "flip_2", img_name).replace('\\', '/')
     temp = PIL.ImageOps.flip(image)
     temp.save(os.path.join(save_root, flip_2))
     # 同时沿 x, y 轴翻转
-    flip_3 = os.path.join(save_relative, "flip_3", img_name)
+    flip_3 = os.path.join(save_relative, "flip_3", img_name).replace('\\', '/')
     temp = image.transpose(PIL.Image.ROTATE_180)
     temp.save(os.path.join(save_root, flip_3))
     # get label string
