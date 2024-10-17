@@ -27,7 +27,7 @@ def generate(img_path, seg_path, class_name_mapping):
     # generate label mask
     label_mask = np.zeros((img_height, img_width), dtype=np.int8)
     for instance, mask in masks.items():
-        label_mask[mask] = class_name_mapping[instance[0]]
+        label_mask[mask] = class_name_mapping.get(instance[0], 0)
     return label_mask
 
 
