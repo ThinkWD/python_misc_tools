@@ -63,14 +63,16 @@ def getXmlValue(root, name, length):
 
 
 # box (list): [xmin, ymin, xmax, ymax]
-def calculate_iou(box1, box2):
-    intersection_w = max(0, min(box1[2], box2[2]) - max(box1[0], box2[0]))
-    intersection_h = max(0, min(box1[3], box2[3]) - max(box1[1], box2[1]))
-    intersection_area = intersection_w * intersection_h
+def calculate_iou(box1: list, box2: list):
+    x1 = max(box1[0], box2[0])
+    y1 = max(box1[1], box2[1])
+    x2 = min(box1[2], box2[2])
+    y2 = min(box1[3], box2[3])
+    intersection = max(0, x2 - x1) * max(0, y2 - y1)
     box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
     box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
-    union_area = box1_area + box2_area - intersection_area
-    return intersection_area / union_area
+    union = box1_area + box2_area - intersection
+    return intersection / union if union > 0 else 0
 
 
 # nms
@@ -90,7 +92,7 @@ def non_maximum_suppression(bboxes, iou_threshold=0.25):
 
 
 # 解析单个 labelimg 标注文件(xml)
-def parse_labelimg(det_path, img_width, img_height):
+def parse_labelimg(det_path, img_width, img_height, overlap_check=True):
     if not os.path.isfile(det_path):
         return {}
     try:
@@ -111,9 +113,10 @@ def parse_labelimg(det_path, img_width, img_height):
             ymax = round(float(getXmlValue(bndbox, "ymax", 1).text))
             assert xmax > xmin and ymax > ymin and xmax <= img_width and ymax <= img_height, f"{det_path}"
             bbox[(name, uuid.uuid1())] = [xmin, ymin, xmax, ymax]
-        sorted_bboxes = non_maximum_suppression(bbox)
-        if len(bbox) != len(sorted_bboxes):
-            print(f"\n labelimg 标注出现重叠框: {det_path}\n")
+        if overlap_check:
+            sorted_bboxes = non_maximum_suppression(bbox)
+            if len(bbox) != len(sorted_bboxes):
+                print(f"\n labelimg 标注出现重叠框: {det_path}\n")
     except Exception as e:
         raise Exception(f"Failed to parse XML file: {det_path}, {e}")
     return bbox
