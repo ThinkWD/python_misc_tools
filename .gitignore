@@ -1,0 +1,12 @@
+*
+!*/
+!.gitignore
+!pyproject.toml
+
+# source code
+!_module_/**
+!./*.py
+!./*.yml
+!./*.sh
+!dataset_downloader/csv_folder/class-descriptions.json
+!dataset_downloader/csv_folder/class-descriptions-boxable.csv

@@ -1,62 +1,31 @@
-# -*- coding=utf-8 -*-
-
-import os
-import sys
-import json
-import tqdm
-import boto3
-import botocore
 import argparse
 import itertools
-import imagesize
-import pandas as pd
+import json
+import os
+import sys
 from concurrent import futures
 
+import boto3
+import botocore
+import imagesize
+import pandas as pd
+import tqdm
 
 try:
     import pycocotools.coco
 except ImportError:
-    sys.exit("Please install pycocotools:\n\n    pip install pycocotools\n")
+    sys.exit('Please install pycocotools:\n\n    pip install pycocotools\n')
 
 # 生成的数据集允许的标签列表
 # fmt: off
 categories = [
-	['Person', 				'Person', 				    ],
-    ['Desk', 				'Desk', 				    ],
-    ['Ladder', 				'Ladder', 				    ],
-    ['Helmet', 				'Helmet', 				    ],
-    ['Tin can', 			'Tin can', 				    ],
-    ['Knife', 				'Knife', 				    ],
-    ['Scissors', 			'Scissors',             	],
-    ['Adhesive tape', 		'Adhesive tape', 		  	],
-    ['Hammer',              'Hammer',               	],
-    ['Tripod',              'Tripod',				  	],
-    ['Ball', 				'Ball (Object)',			],
-    ['Plastic bag', 		'Plastic bag',				],
-    ['Luggage and bags', 	'Luggage and bags',			],
-    ['Laptop',              'Laptop',			    	],
-    ['Waste container',		'Waste container',			],
-
-    ['Chair', 			    'Chair',					],
-    ['Chair', 				'Stool',                    ],
-
-    ['Box', 				'Box',                      ],
-    ['Box', 				'Facial tissue holder',     ],
-
-    ['Bottle', 				'Bottle', 				    ],
-    ['Bottle', 				'Salt and pepper shakers',  ],
-    
-    ['Screwdriver', 		'Screwdriver',			    ],
-    ['Screwdriver', 		'Chisel', 				    ],
-    
-    ['Drill', 				'Drill (Tool)',			    ],
-    ['Drill', 				'Grinder', 				    ],
-    
-    ['Wrench',				'Wrench', 				    ],
-    ['Wrench',				'Ratchet (Device)',		    ],
-    
-    ['Flashlight', 			'Flashlight', 			    ],
-    ['Flashlight', 			'Torch', 				    ],
+    ['Bird',    'Bird'],        # /m/015p6, Bird, 鸟
+    ['Cat',     'Cat'],         # /m/01yrx, Cat, 猫
+    ['Dog',     'Dog'],         # /m/0bt9lr, Dog, 狗
+    ['Rabbit',  'Rabbit'],      # /m/06mf6, Rabbit, 兔子
+    ['Mouse',   'Mouse'],       # /m/04rmv, Mouse, 老鼠
+    ['Mouse',   'Hamster'],     # /m/03qrc, Hamster, 仓鼠
+    ['Mouse',   'Squirrel'],    # /m/071qp, Squirrel, 松鼠
 ]
 # fmt: on
 
@@ -66,8 +35,8 @@ def checkCOCO(coco_file):
     coco_api = pycocotools.coco.COCO(coco_file)
     img_ids = sorted(list(coco_api.imgs.keys()))
     anns = [coco_api.imgToAnns[img_id] for img_id in img_ids]
-    if "minival" not in coco_file:
-        ann_ids = [ann["id"] for anns_per_image in anns for ann in anns_per_image]
+    if 'minival' not in coco_file:
+        ann_ids = [ann['id'] for anns_per_image in anns for ann in anns_per_image]
         if len(set(ann_ids)) != len(ann_ids):
             sys.exit(f"\n\n\033[1;31m Annotation ids in '{coco_file}' are not unique!\033[0m")
 
@@ -81,35 +50,35 @@ def create_COCO(args, task, csv_file, label_code):
             label_list.append(c[0])
             label_set.remove(c[0])
     # 获取文件夹下所有图片名并排序
-    images = sorted([f.split('.')[0] for f in os.listdir(f"./{args.down_folder}/{task}/") if f.endswith('.jpg')])
+    images = sorted([f.split('.')[0] for f in os.listdir(f'./{args.down_folder}/{task}/') if f.endswith('.jpg')])
     # 读取标签文件
-    annotations = pd.read_csv(csv_file, usecols=["ImageID", "LabelName", "XMin", "XMax", "YMin", "YMax"])
+    annotations = pd.read_csv(csv_file, usecols=['ImageID', 'LabelName', 'XMin', 'XMax', 'YMin', 'YMax'])
     # 开始遍历图片列表
     bbox_id = 0
     last_index = 0
     coco = dict(categories=[], images=[], annotations=[])  # 建立 coco json 格式
-    for image_id, image in enumerate(tqdm.tqdm(images, desc=f"{task}", leave=True, colour="CYAN")):
+    for image_id, image in enumerate(tqdm.tqdm(images, desc=f'{task}', leave=True, colour='CYAN')):
         # 获取图片信息
-        img_path = f"{task}/{image}.jpg"
-        width, height = imagesize.get(f"./{args.down_folder}/{img_path}")
+        img_path = f'{task}/{image}.jpg'
+        width, height = imagesize.get(f'./{args.down_folder}/{img_path}')
         assert width > 0 and height > 0
         # 获取标签信息
         anns = annotations.loc[annotations['ImageID'] == image]
         anns = anns[anns['LabelName'].isin(label_code)]
         if anns.empty:
             continue
-        coco["images"].append(dict(id=image_id, file_name=img_path, width=width, height=height))
+        coco['images'].append(dict(id=image_id, file_name=img_path, width=width, height=height))
         category_ids = [label_list.index(args.classes[label_code.index(name)][0]) for name in anns['LabelName']]
-        coco["annotations"].extend(
+        coco['annotations'].extend(
             [
                 {
-                    "id": bbox_id + i,
-                    "image_id": image_id,
-                    "category_id": category_ids[i],
-                    "bbox": [xmin, ymin, xmax - xmin, ymax - ymin],
-                    "segmentation": [[xmin, ymin, xmin, ymax, xmax, ymax, xmax, ymin]],
-                    "area": (xmax - xmin) * (ymax - ymin),
-                    "iscrowd": 0,
+                    'id': bbox_id + i,
+                    'image_id': image_id,
+                    'category_id': category_ids[i],
+                    'bbox': [xmin, ymin, xmax - xmin, ymax - ymin],
+                    'segmentation': [[xmin, ymin, xmin, ymax, xmax, ymax, xmax, ymin]],
+                    'area': (xmax - xmin) * (ymax - ymin),
+                    'iscrowd': 0,
                 }
                 for i, (xmin, xmax, ymin, ymax) in enumerate(
                     zip(anns['XMin'] * width, anns['XMax'] * width, anns['YMin'] * height, anns['YMax'] * height)
@@ -121,16 +90,16 @@ def create_COCO(args, task, csv_file, label_code):
         annotations = annotations[end_index - last_index + 1 :]
         last_index = end_index + 1
     # 导出到文件
-    coco["categories"] = [{"id": id, "name": cat, "supercategory": cat} for id, cat in enumerate(label_list)]
-    with open(f"./{task}.json", "w", encoding='utf-8') as f:
+    coco['categories'] = [{'id': id, 'name': cat, 'supercategory': cat} for id, cat in enumerate(label_list)]
+    with open(f'./{task}.json', 'w', encoding='utf-8') as f:
         json.dump(coco, f, indent=4)
-    checkCOCO(f"./{task}.json")  # 检查COCO文件是否正确
+    checkCOCO(f'./{task}.json')  # 检查COCO文件是否正确
 
 
 # 获取标签列表
 def get_label_list(args):
-    classes_file = "./csv_folder/class-descriptions-boxable.csv"
-    assert os.path.isfile(classes_file), "classes_file is not exits."
+    classes_file = './csv_folder/class-descriptions-boxable.csv'
+    assert os.path.isfile(classes_file), 'classes_file is not exits.'
     classes = pd.read_csv(classes_file, header=None)
     label_name = [c[1] for c in args.classes]
     label_code = [classes.loc[classes[1] == c[1]].values[0][0] for c in args.classes]
@@ -141,13 +110,13 @@ def get_label_list(args):
 # 获取图片列表
 def get_images_list(args, csv_file, label_name, label_code, download_folder):
     # 第一次筛选图片列表 - 从 csv 文件
-    annotations = pd.read_csv(csv_file, usecols=["ImageID", "LabelName"])
+    annotations = pd.read_csv(csv_file, usecols=['ImageID', 'LabelName'])
     images_list = set()
     for i, code in enumerate(label_code):
         imgs = annotations['ImageID'][annotations.LabelName == code].values
         imgs = set(imgs)
         len_imgs = len(imgs)
-        print(f"[info] Found {len_imgs} online images for {label_name[i]}.")
+        print(f'[info] Found {len_imgs} online images for {label_name[i]}.')
         if args.down_limit > 0 and len_imgs > args.down_limit:
             print(f'\tLimiting to {args.down_limit} images.')
             imgs = set(itertools.islice(imgs, args.down_limit))
@@ -218,28 +187,35 @@ def main():
     args = parse_arguments()
     label_name, label_code = get_label_list(args)
     for task in args.tasks:
-        print(f"\n[info] start download task: {task}")
+        print(f'\n[info] start download task: {task}')
         download_folder = os.path.join(os.getcwd(), args.down_folder, task)
         if not os.path.exists(download_folder):
             os.makedirs(download_folder)
         # check annotations_file
-        csv_file = f"./csv_folder/{task}-annotations-bbox.csv"
-        assert os.path.isfile(csv_file), "annotations_file is not exits."
+        csv_file = f'./csv_folder/{task}-annotations-bbox.csv'
+        assert os.path.isfile(csv_file), 'annotations_file is not exits.'
         # download
         if not args.skip_down:
             if images_list := get_images_list(args, csv_file, label_name, label_code, download_folder):
-                print("[info] start download...")
+                print('[info] start download...')
                 download_all_images(images_list, task, download_folder, args.down_threads)
-                print("[info] Done!")
+                print('[info] Done!')
             else:
                 print('[info] All images already downloaded.')
         # create coco
         if not args.skip_coco:
-            assert not os.path.exists(f"./{task}.json"), "待创建的标签文件已存在!"
-            print("[info] start create coco file...")
+            assert not os.path.exists(f'./{task}.json'), '待创建的标签文件已存在!'
+            print('[info] start create coco file...')
             create_COCO(args, task, csv_file, label_code)
-    print("\nAll process success.\n")
+    print('\nAll process success.\n')
 
 
-if __name__ == "__main__":
+# 从 open_images_dataset 下载指定的类的图片
+# https://storage.googleapis.com/openimages/web/download_v7.html#download-manually
+# https://storage.googleapis.com/openimages/v6/oidv6-train-annotations-bbox.csv
+# https://storage.googleapis.com/openimages/v5/validation-annotations-bbox.csv
+# https://storage.googleapis.com/openimages/v5/test-annotations-bbox.csv
+# step1: 定义 categories 数组
+# step2: 执行命令开始下载 python3 tools_bbox_oid2coco.py --tasks all
+if __name__ == '__main__':
     main()
