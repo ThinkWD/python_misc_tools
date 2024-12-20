@@ -1,21 +1,20 @@
-# -*- coding=utf-8 -*-
-
-import os
-import sys
+import collections
 import json
 import math
+import os
+import sys
 import uuid
-import collections
+import xml.etree.ElementTree as ET
+
+import numpy as np
 import PIL.Image
 import PIL.ImageDraw
-import numpy as np
-import xml.etree.ElementTree as ET
 
 try:
     import pycocotools.coco
     import pycocotools.mask
 except ImportError:
-    print("Please install pycocotools:\n\n    pip install pycocotools\n")
+    print('Please install pycocotools:\n\n    pip install pycocotools\n')
     sys.exit(1)
 
 
@@ -56,7 +55,7 @@ def getXmlValue(root, name, length):
     XmlValue = root.findall(name)
     if length > 0:
         if len(XmlValue) != length:
-            raise Exception("The size of %s is supposed to be %d, but is %d." % (name, length, len(XmlValue)))
+            raise Exception(f'The size of {name} is supposed to be {length}, but is {len(XmlValue)}.')
         if length == 1:
             XmlValue = XmlValue[0]
     return XmlValue
@@ -99,26 +98,26 @@ def parse_labelimg(det_path, img_width, img_height, overlap_check=True):
         tree = ET.parse(det_path)
         root = tree.getroot()
         # check image size
-        imgsize = getXmlValue(root, "size", 1)
-        assert img_width == int(getXmlValue(imgsize, "width", 1).text), f"图片与标签不对应: {det_path}"
-        assert img_height == int(getXmlValue(imgsize, "height", 1).text), f"图片与标签不对应: {det_path}"
+        imgsize = getXmlValue(root, 'size', 1)
+        assert img_width == int(getXmlValue(imgsize, 'width', 1).text), f'图片与标签不对应: {det_path}'
+        assert img_height == int(getXmlValue(imgsize, 'height', 1).text), f'图片与标签不对应: {det_path}'
         # parse box info
         bbox = {}
-        for obj in getXmlValue(root, "object", 0):
-            name = getXmlValue(obj, "name", 1).text
-            bndbox = getXmlValue(obj, "bndbox", 1)
-            xmin = round(float(getXmlValue(bndbox, "xmin", 1).text))
-            ymin = round(float(getXmlValue(bndbox, "ymin", 1).text))
-            xmax = round(float(getXmlValue(bndbox, "xmax", 1).text))
-            ymax = round(float(getXmlValue(bndbox, "ymax", 1).text))
-            assert xmax > xmin and ymax > ymin and xmax <= img_width and ymax <= img_height, f"{det_path}"
+        for obj in getXmlValue(root, 'object', 0):
+            name = getXmlValue(obj, 'name', 1).text
+            bndbox = getXmlValue(obj, 'bndbox', 1)
+            xmin = round(float(getXmlValue(bndbox, 'xmin', 1).text))
+            ymin = round(float(getXmlValue(bndbox, 'ymin', 1).text))
+            xmax = round(float(getXmlValue(bndbox, 'xmax', 1).text))
+            ymax = round(float(getXmlValue(bndbox, 'ymax', 1).text))
+            assert xmax > xmin and ymax > ymin and xmax <= img_width and ymax <= img_height, f'{det_path}'
             bbox[(name, uuid.uuid1())] = [xmin, ymin, xmax, ymax]
         if overlap_check:
             sorted_bboxes = non_maximum_suppression(bbox)
             if len(bbox) != len(sorted_bboxes):
-                print(f"\n labelimg 标注出现重叠框: {det_path}\n")
+                print(f'\n labelimg 标注出现重叠框: {det_path}\n')
     except Exception as e:
-        raise Exception(f"Failed to parse XML file: {det_path}, {e}")
+        raise Exception(f'Failed to parse XML file: {det_path}, {e}')
     return bbox
 
 
@@ -127,8 +126,8 @@ def checkCOCO(coco_file):
     coco_api = pycocotools.coco.COCO(coco_file)
     img_ids = sorted(list(coco_api.imgs.keys()))
     anns = [coco_api.imgToAnns[img_id] for img_id in img_ids]
-    if "minival" not in coco_file:
-        ann_ids = [ann["id"] for anns_per_image in anns for ann in anns_per_image]
+    if 'minival' not in coco_file:
+        ann_ids = [ann['id'] for anns_per_image in anns for ann in anns_per_image]
         if len(set(ann_ids)) != len(ann_ids):
             result = dict(collections(ann_ids))
             duplicate_items = {key: value for key, value in result.items() if value > 1}
@@ -141,12 +140,12 @@ def shape_to_mask(img_shape, points, shape_type=None, line_width=10, point_size=
     mask = PIL.Image.fromarray(mask)
     draw = PIL.ImageDraw.Draw(mask)
     xy = [tuple(point) for point in points]
-    if shape_type == "circle":
-        assert len(xy) == 2, "Shape of shape_type=circle must have 2 points"
+    if shape_type == 'circle':
+        assert len(xy) == 2, 'Shape of shape_type=circle must have 2 points'
         (cx, cy), (px, py) = xy
         d = math.sqrt((cx - px) ** 2 + (cy - py) ** 2)
         draw.ellipse([cx - d, cy - d, cx + d, cy + d], outline=1, fill=1)
-    elif shape_type == "rectangle":
+    elif shape_type == 'rectangle':
         if (
             len(xy) == 4
             and xy[0][0] == xy[3][0]
@@ -155,20 +154,20 @@ def shape_to_mask(img_shape, points, shape_type=None, line_width=10, point_size=
             and xy[2][1] == xy[3][1]
         ):
             xy = [tuple(xy[0]), tuple(xy[2])]
-        assert len(xy) == 2, "Shape of shape_type=rectangle must have 2 points"
+        assert len(xy) == 2, 'Shape of shape_type=rectangle must have 2 points'
         draw.rectangle(xy, outline=1, fill=1)
-    elif shape_type == "line":
-        assert len(xy) == 2, "Shape of shape_type=line must have 2 points"
+    elif shape_type == 'line':
+        assert len(xy) == 2, 'Shape of shape_type=line must have 2 points'
         draw.line(xy=xy, fill=1, width=line_width)
-    elif shape_type == "linestrip":
+    elif shape_type == 'linestrip':
         draw.line(xy=xy, fill=1, width=line_width)
-    elif shape_type == "point":
-        assert len(xy) == 1, "Shape of shape_type=point must have 1 points"
+    elif shape_type == 'point':
+        assert len(xy) == 1, 'Shape of shape_type=point must have 1 points'
         cx, cy = xy[0]
         r = point_size
         draw.ellipse([cx - r, cy - r, cx + r, cy + r], outline=1, fill=1)
     else:
-        assert len(xy) > 2, "Polygon must have points more than 2"
+        assert len(xy) > 2, 'Polygon must have points more than 2'
         draw.polygon(xy=xy, outline=1, fill=1)
     mask = np.array(mask, dtype=bool)
     return mask
@@ -184,30 +183,30 @@ def parse_labelme(
     if not os.path.isfile(seg_path):
         return {}, {}
     # load json label file
-    with open(seg_path, "r", encoding="utf-8") as file:
+    with open(seg_path, encoding='utf-8') as file:
         data = json.load(file)
     # check image size
-    assert img_width == int(data["imageWidth"]), f"图片与标签不对应: {seg_path}"
-    assert img_height == int(data["imageHeight"]), f"图片与标签不对应: {seg_path}"
+    assert img_width == int(data['imageWidth']), f'图片与标签不对应: {seg_path}'
+    assert img_height == int(data['imageHeight']), f'图片与标签不对应: {seg_path}'
     # parse shapes info
     masks = {}
     shapes = collections.defaultdict(list)  # 如果你访问一个不存在的键, defaultdict 会自动为这个键创建一个默认值
-    for shape in data["shapes"]:
+    for shape in data['shapes']:
         # check shape type (rotation == polygon)
-        shape_type = shape["shape_type"]
+        shape_type = shape['shape_type']
         if shape_type not in allow_shape_type:
-            raise Exception(f"Unsupported shape types: {shape_type}, check: {seg_path}")
+            raise Exception(f'Unsupported shape types: {shape_type}, check: {seg_path}')
         # get instance (唯一实例 flag 值)
-        label = shape["label"]
-        group_id = uuid.uuid1() if shape["group_id"] is None else shape["group_id"]
+        label = shape['label']
+        group_id = uuid.uuid1() if shape['group_id'] is None else shape['group_id']
         instance = (label, group_id)
         # generate mask (如果存在同一 group_id 的 mask , 就合并它们)
-        points = shape["points"]
+        points = shape['points']
         mask = shape_to_mask([img_height, img_width], points, shape_type)
         masks[instance] = masks[instance] | mask if instance in masks else mask
         # points convert
-        if shape_type == "rectangle":  # 矩形将两个对角点转换为四个顶点
-            assert len(points) == 2 or len(points) == 4, f"{seg_path}: Shape of rectangle must have 2 or 4 points"
+        if shape_type == 'rectangle':  # 矩形将两个对角点转换为四个顶点
+            assert len(points) == 2 or len(points) == 4, f'{seg_path}: Shape of rectangle must have 2 or 4 points'
             if len(points) == 2:
                 (x1, y1), (x2, y2) = points
                 x1, x2 = sorted([x1, x2])
@@ -219,8 +218,8 @@ def parse_labelme(
                     and points[1][0] == points[2][0]
                     and points[0][1] == points[1][1]
                     and points[2][1] == points[3][1]
-                ), f"{seg_path}: Shape of shape_type=rectangle is invalid box"
-        elif shape_type == "circle":  # 圆形根据圆心和半径，生成一个多边形的点坐标。
+                ), f'{seg_path}: Shape of shape_type=rectangle is invalid box'
+        elif shape_type == 'circle':  # 圆形根据圆心和半径，生成一个多边形的点坐标。
             (x1, y1), (x2, y2) = points
             r = np.linalg.norm([x2 - x1, y2 - y1])
             # r(1-cos(a/2))<x, a=2*pi/N => N>pi/arccos(1-x/r)
@@ -241,18 +240,18 @@ def parse_labelme(
 
 
 def query_labelme_flags(seg_path, flag):
-    with open(seg_path, "r", encoding="utf-8") as file:
+    with open(seg_path, encoding='utf-8') as file:
         data = json.load(file)
-    flags = data.get("flags", {})
+    flags = data.get('flags', {})
     return flags.get(flag, False)
 
 
 def set_labelme_flags(seg_path, flag):
-    with open(seg_path, "r", encoding="utf-8") as file:
+    with open(seg_path, encoding='utf-8') as file:
         data = json.load(file)
-    data.setdefault("flags", {})
-    data["flags"][flag] = True
-    with open(seg_path, 'w', encoding="utf-8") as file:
+    data.setdefault('flags', {})
+    data['flags'][flag] = True
+    with open(seg_path, 'w', encoding='utf-8') as file:
         json.dump(data, file, indent=4)
 
 
@@ -266,14 +265,14 @@ def get_matching_pairs(seg_path, bbox, shapes, check_no_rotation=False):
                 and xy[0][2] == xy[0][4]
                 and xy[0][1] == xy[0][3]
                 and xy[0][5] == xy[0][7]
-                and not query_labelme_flags(seg_path, "Ignoring_no_rotation_warning")
+                and not query_labelme_flags(seg_path, 'Ignoring_no_rotation_warning')
             ):
-                print(f"\n\033[1;33m[Warning] no rotation: {seg_path}\033[0m")
-                print("\nEnter [Y/N] to choose to keep/discard the annotations for this file: ")
+                print(f'\n\033[1;33m[Warning] no rotation: {seg_path}\033[0m')
+                print('\nEnter [Y/N] to choose to keep/discard the annotations for this file: ')
                 user_input = input().lower()
-                if user_input != "y":
+                if user_input != 'y':
                     return {}
-                set_labelme_flags(seg_path, "Ignoring_no_rotation_warning")
+                set_labelme_flags(seg_path, 'Ignoring_no_rotation_warning')
     # get_matching_pairs
     pairs = {}
     selected_shapes = set()
@@ -289,21 +288,21 @@ def get_matching_pairs(seg_path, bbox, shapes, check_no_rotation=False):
             pairs[box_instance] = matching_shapes
     # [Error] matching pairs
     if (len(bbox) != len(pairs) or len(shapes) != len(selected_shapes)) and not query_labelme_flags(
-        seg_path, "Ignoring_matching_errors"
+        seg_path, 'Ignoring_matching_errors'
     ):
         print(
-            f"\n\033[1;31m[Error] matching pairs: {seg_path}\nlen(bbox): {len(bbox)}, len(pairs): {len(pairs)}, "
-            f"len(shapes): {len(shapes)}, len(selected_shapes): {len(selected_shapes)}\033[0m"
+            f'\n\033[1;31m[Error] matching pairs: {seg_path}\nlen(bbox): {len(bbox)}, len(pairs): {len(pairs)}, '
+            f'len(shapes): {len(shapes)}, len(selected_shapes): {len(selected_shapes)}\033[0m'
         )
         for box_instance, box in bbox.items():
             if box_instance not in pairs:
-                print(f"box: {box}")
+                print(f'box: {box}')
         for shape_instance, shape in shapes.items():
             if shape_instance not in selected_shapes:
-                print(f"shape: {centers[shape_instance]}, {np.rint(shape).astype(int).tolist()}")
-        print("\nEnter [Y/N] to choose to keep/discard the annotations for this file: ")
+                print(f'shape: {centers[shape_instance]}, {np.rint(shape).astype(int).tolist()}')
+        print('\nEnter [Y/N] to choose to keep/discard the annotations for this file: ')
         user_input = input().lower()
-        if user_input != "y":
+        if user_input != 'y':
             return {}
-        set_labelme_flags(seg_path, "Ignoring_matching_errors")
+        set_labelme_flags(seg_path, 'Ignoring_matching_errors')
     return pairs

@@ -1,10 +1,10 @@
-# -*- coding=utf-8 -*-
-
-import os
 import json
+import os
+
 import PIL.Image
 from tqdm import tqdm
-from module import find_dir, find_img, parse_labelimg, parse_labelme, checkCOCO, rectangle_include_point
+
+from module import checkCOCO, find_dir, find_img, parse_labelimg, parse_labelme, rectangle_include_point
 
 ##################################################################
 #
@@ -12,15 +12,15 @@ from module import find_dir, find_img, parse_labelimg, parse_labelme, checkCOCO,
 #
 ##################################################################
 
-detection_class = "Scale"
-keypoints_class = ["beg_tl", "beg_br", "end_tl", "end_br", "point"]
+detection_class = 'Scale'
+keypoints_class = ['beg_tl', 'beg_br', 'end_tl', 'end_br', 'point']
 skeleton = [[0, 1], [1, 2], [2, 3], [3, 0], [4, 0], [4, 1], [4, 2], [4, 3]]
 
 
 # 单个图片
 def generate(img_path, det_path, seg_path):
     # check image
-    assert os.path.isfile(img_path), f"图片文件不存在: {img_path}"
+    assert os.path.isfile(img_path), f'图片文件不存在: {img_path}'
     img = PIL.Image.open(img_path)
     width, height = img.size
     assert width > 0 and height > 0
@@ -60,12 +60,12 @@ def generate(img_path, det_path, seg_path):
 
 # 创建 coco
 def process(root_path, split, all_reserve=0, reserve_no_label=False):
-    print(f"\n[info] start task...")
+    print('\n[info] start task...')
     # 定义类别
     cat = {
-        "id": 0,
-        "name": detection_class,
-        "supercategory": detection_class,
+        'id': 0,
+        'name': detection_class,
+        'supercategory': detection_class,
         'keypoints': keypoints_class,
         'skeleton': skeleton,
     }
@@ -78,58 +78,58 @@ def process(root_path, split, all_reserve=0, reserve_no_label=False):
     test_bbox_id = 0
     # 遍历脚本所在目录下的子文件夹
     for dir in find_dir(root_path):
-        imgs_dir_path = os.path.join(root_path, dir, "imgs")
+        imgs_dir_path = os.path.join(root_path, dir, 'imgs')
         if not os.path.isdir(imgs_dir_path):
             continue
         img_list = find_img(imgs_dir_path)
         all_reserve_dir = len(img_list) < all_reserve
         not_ann_cnt = 0
-        for num, file in enumerate(tqdm(img_list, desc=f"{dir}\t", leave=True, ncols=100, colour="CYAN")):
+        for num, file in enumerate(tqdm(img_list, desc=f'{dir}\t', leave=True, ncols=100, colour='CYAN')):
             # misc path
             raw_name, extension = os.path.splitext(file)
-            img_path = f"{dir}/imgs/{raw_name}{extension}"
-            det_path = f"{dir}/anns/{raw_name}.xml"
-            seg_path = f"{dir}/anns_seg/{raw_name}.json"
+            img_path = f'{dir}/imgs/{raw_name}{extension}'
+            det_path = f'{dir}/anns/{raw_name}.xml'
+            seg_path = f'{dir}/anns_seg/{raw_name}.json'
             # get dict
             imgs_dict, anns_dict = generate(img_path, det_path, seg_path)
             # check anns_dict size
             anns_size = len(anns_dict)
             not_ann_cnt += 1 if anns_size == 0 else 0
-            if reserve_no_label == False and anns_size == 0:
+            if reserve_no_label is False and anns_size == 0:
                 continue
             # train dataset
             if all_reserve_dir or split <= 0 or num % split != 0:
-                imgs_dict["id"] = train_img_id
-                data_train["images"].append(imgs_dict.copy())
+                imgs_dict['id'] = train_img_id
+                data_train['images'].append(imgs_dict.copy())
                 for idx, ann in enumerate(anns_dict):
-                    ann["image_id"] = train_img_id
-                    ann["id"] = train_bbox_id + idx
-                    data_train["annotations"].append(ann.copy())
+                    ann['image_id'] = train_img_id
+                    ann['id'] = train_bbox_id + idx
+                    data_train['annotations'].append(ann.copy())
                 train_img_id += 1
                 train_bbox_id += anns_size
             # test dataset
             if all_reserve_dir or split <= 0 or num % split == 0:
-                imgs_dict["id"] = test_img_id
-                data_test["images"].append(imgs_dict.copy())
+                imgs_dict['id'] = test_img_id
+                data_test['images'].append(imgs_dict.copy())
                 for idx, ann in enumerate(anns_dict):
-                    ann["image_id"] = test_img_id
-                    ann["id"] = test_bbox_id + idx
-                    data_test["annotations"].append(ann.copy())
+                    ann['image_id'] = test_img_id
+                    ann['id'] = test_bbox_id + idx
+                    data_test['annotations'].append(ann.copy())
                 test_img_id += 1
                 test_bbox_id += anns_size
         if not_ann_cnt != 0:
-            print(f"\033[1;31m[Error] {dir}中有{not_ann_cnt}张图片不存在标注文件\n\033[0m")
-    print(f"\n训练集图片总数: {train_img_id}, 标注总数: {train_bbox_id}\n")
-    print(f"测试集图片总数: {test_img_id}, 标注总数: {test_bbox_id}\n")
+            print(f'\033[1;31m[Error] {dir}中有{not_ann_cnt}张图片不存在标注文件\n\033[0m')
+    print(f'\n训练集图片总数: {train_img_id}, 标注总数: {train_bbox_id}\n')
+    print(f'测试集图片总数: {test_img_id}, 标注总数: {test_bbox_id}\n')
     # export to file
-    with open("./pose_train.json", "w", encoding='utf-8') as f:
+    with open('./pose_train.json', 'w', encoding='utf-8') as f:
         json.dump(data_train, f, indent=4)
-    checkCOCO("./pose_train.json")  # 检查COCO文件是否正确
-    with open("./pose_test.json", "w", encoding='utf-8') as f:
+    checkCOCO('./pose_train.json')  # 检查COCO文件是否正确
+    with open('./pose_test.json', 'w', encoding='utf-8') as f:
         json.dump(data_test, f, indent=4)
-    checkCOCO("./pose_test.json")  # 检查COCO文件是否正确
+    checkCOCO('./pose_test.json')  # 检查COCO文件是否正确
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     process(os.getcwd(), 10)
-    print("\nAll process success\n")
+    print('\nAll process success\n')

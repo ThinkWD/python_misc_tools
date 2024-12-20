@@ -1,7 +1,6 @@
-# -*- coding=utf-8 -*-
-
 import os
 import shutil
+
 from tqdm import tqdm
 
 
@@ -18,9 +17,9 @@ def main(refer, target):
             path = os.path.join(os.path.relpath(root, target), file)
             file_list.append(file_t(name, path))
 
-    result_dir = os.path.join(refer, "result")
+    result_dir = os.path.join(refer, 'result')
     # print(f"result_dir: {result_dir}")
-    for file in tqdm(os.listdir(refer), leave=True, ncols=100, colour="CYAN"):
+    for file in tqdm(os.listdir(refer), leave=True, ncols=100, colour='CYAN'):
         name, _ = os.path.splitext(file)
         matching = [file for file in file_list if file.name == name]
         for match in matching:
@@ -33,7 +32,7 @@ def main(refer, target):
             shutil.move(src, dst)
 
 
-if __name__ == "__main__":
-    refer_dir = "D:/User/Desktop/data/new/result"
-    target_dir = "D:/Work/__DataSet/数字仪表/step1_categories/src/D000"
+if __name__ == '__main__':
+    refer_dir = 'D:/User/Desktop/data/new/result'
+    target_dir = 'D:/Work/__DataSet/数字仪表/step1_categories/src/D000'
     main(refer_dir, target_dir)

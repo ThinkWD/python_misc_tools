@@ -1,13 +1,12 @@
-# -*- coding=utf-8 -*-
-
-import os
-import cv2
 import copy
-import scipy
-import numpy as np
-from tqdm import tqdm
-from module import find_img, parse_labelimg
+import os
 
+import cv2
+import numpy as np
+import scipy
+from tqdm import tqdm
+
+from module import find_img, parse_labelimg
 
 ##################################################################
 #
@@ -26,7 +25,7 @@ from module import find_img, parse_labelimg
 #
 ##################################################################
 
-cats = {"黄": "yellow", "黑": "black", "红": "red", "白": "white", "橙": "orange", "蓝": "blue", "head": "head"}
+cats = {'黄': 'yellow', '黑': 'black', '红': 'red', '白': 'white', '橙': 'orange', '蓝': 'blue', 'head': 'head'}
 
 
 # 计算包含得分 (0-1)
@@ -113,7 +112,7 @@ def get_wh_box(box):
 
 
 def main(root_path, save_dir, debug_match=False):
-    print(f"\n[info] start task...")
+    print('\n[info] start task...')
     imgs_path = os.path.join(root_path, 'imgs')
     anns_helmet_path = os.path.join(root_path, 'anns')
     anns_person_path = os.path.join(root_path, 'anns_person')
@@ -124,7 +123,7 @@ def main(root_path, save_dir, debug_match=False):
     # 开始遍历处理
     save_index = 0
     imgs = find_img(imgs_path)
-    for file in tqdm(imgs, leave=True, ncols=100, colour="CYAN"):
+    for file in tqdm(imgs, leave=True, ncols=100, colour='CYAN'):
         raw_name, _ = os.path.splitext(file)
         helmet_path = os.path.join(anns_helmet_path, f'{raw_name}.xml')
         person_path = os.path.join(anns_person_path, f'{raw_name}.xml')
@@ -151,6 +150,6 @@ def main(root_path, save_dir, debug_match=False):
             save_index += 1
 
 
-if __name__ == "__main__":
-    main(os.getcwd(), "dataset_cls")
-    print("\nAll process success\n")
+if __name__ == '__main__':
+    main(os.getcwd(), 'dataset_cls')
+    print('\nAll process success\n')

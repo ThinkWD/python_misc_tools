@@ -1,12 +1,11 @@
-# -*- coding=utf-8 -*-
-
-import os
 import json
-import PIL.Image
-import numpy as np
-from tqdm import tqdm
-from module import find_dir, find_img, parse_labelme
+import os
 
+import numpy as np
+import PIL.Image
+from tqdm import tqdm
+
+from module import find_dir, find_img, parse_labelme
 
 ##################################################################
 #
@@ -30,12 +29,12 @@ def data_shapes_rotate(shapes, width, height):
 
 
 def process_rotate(root_path):
-    imgs_path = os.path.join(root_path, "imgs")
-    anns_path = os.path.join(root_path, "anns_seg")
-    pngs_path = os.path.join(root_path, "anns_png")
-    assert os.path.isdir(imgs_path), "imgs directory not exists."
-    assert os.path.isdir(anns_path), "anns_seg directory not exists."
-    assert os.path.isdir(pngs_path), "anns_png directory not exists."
+    imgs_path = os.path.join(root_path, 'imgs')
+    anns_path = os.path.join(root_path, 'anns_seg')
+    pngs_path = os.path.join(root_path, 'anns_png')
+    assert os.path.isdir(imgs_path), 'imgs directory not exists.'
+    assert os.path.isdir(anns_path), 'anns_seg directory not exists.'
+    assert os.path.isdir(pngs_path), 'anns_png directory not exists.'
     # rotate image
     for dir in find_dir(imgs_path):
         if not dir.endswith('_R'):
@@ -46,16 +45,16 @@ def process_rotate(root_path):
             continue
         imgs_list = find_img(imgs_dir_path)
         # makedirs
-        prefix = f"{dir[:-1]}rotated"
+        prefix = f'{dir[:-1]}rotated'
         os.makedirs(os.path.join(imgs_path, prefix), exist_ok=True)
         os.makedirs(os.path.join(anns_path, prefix), exist_ok=True)
         os.makedirs(os.path.join(pngs_path, prefix), exist_ok=True)
         # 遍历图片列表
-        for file in tqdm(imgs_list, desc=f"{dir}\t", leave=True, ncols=100, colour="CYAN"):
+        for file in tqdm(imgs_list, desc=f'{dir}\t', leave=True, ncols=100, colour='CYAN'):
             raw_name, extension = os.path.splitext(file)
-            img_path = f"{imgs_path}/{dir}/{raw_name}{extension}"
-            seg_path = f"{anns_path}/{dir}/{raw_name}.json"
-            png_path = f"{pngs_path}/{dir}/{raw_name}.png"
+            img_path = f'{imgs_path}/{dir}/{raw_name}{extension}'
+            seg_path = f'{anns_path}/{dir}/{raw_name}.json'
+            png_path = f'{pngs_path}/{dir}/{raw_name}.png'
             # rotate img
             cur_image = PIL.Image.open(img_path)
             width, height = cur_image.size
@@ -69,11 +68,11 @@ def process_rotate(root_path):
             cur_image = cur_image.resize((width, height), PIL.Image.BICUBIC)
             cur_image.save(f'{pngs_path}/{prefix}/{raw_name}.png')
             # rotate seg
-            with open(seg_path, "r", encoding='utf-8') as file:
+            with open(seg_path, encoding='utf-8') as file:
                 data = json.load(file)
             data_shapes_rotate(data['shapes'], width, height)
-            data["imagePath"] = f"../../imgs/{prefix}/{raw_name}{extension}"
-            with open(f"{anns_path}/{prefix}/{raw_name}.json", "w", encoding='utf-8') as file:
+            data['imagePath'] = f'../../imgs/{prefix}/{raw_name}{extension}'
+            with open(f'{anns_path}/{prefix}/{raw_name}.json', 'w', encoding='utf-8') as file:
                 json.dump(data, file, indent=4)
 
 
@@ -88,7 +87,7 @@ def line_to_line_intersect(lineA, lineB, cross=0):
 
 def generate_tusimple(img_path, seg_path, relative_path):
     # check image
-    assert os.path.isfile(img_path), f"图片文件不存在: {img_path}"
+    assert os.path.isfile(img_path), f'图片文件不存在: {img_path}'
     img = PIL.Image.open(img_path)
     img_width, img_height = img.size
     assert img_width > 0 and img_height > 0
@@ -103,7 +102,7 @@ def generate_tusimple(img_path, seg_path, relative_path):
         # check monotonic
         y_diff = np.diff(points[:, 1])
         monotonic = 0 if np.all(y_diff > 0) else (1 if np.all(y_diff < 0) else 2)
-        assert monotonic == 0 or monotonic == 1, f"非法标注: {seg_path}"
+        assert monotonic == 0 or monotonic == 1, f'非法标注: {seg_path}'
         # init lane
         lane = np.full((len(h_samples),), -2, dtype=float)
         for i in range(points_length - 1):
@@ -132,41 +131,41 @@ def generate_tusimple(img_path, seg_path, relative_path):
 
 
 def process_tusimple(root_path, label_file):
-    imgs_path = os.path.join(root_path, "imgs")
-    anns_path = os.path.join(root_path, "anns_seg")
-    assert os.path.isdir(imgs_path), "imgs directory not exists."
-    assert os.path.isdir(anns_path), "anns_seg directory not exists."
+    imgs_path = os.path.join(root_path, 'imgs')
+    anns_path = os.path.join(root_path, 'anns_seg')
+    assert os.path.isdir(imgs_path), 'imgs directory not exists.'
+    assert os.path.isdir(anns_path), 'anns_seg directory not exists.'
     # get test list
-    with open(os.path.join(root_path, label_file), "r", encoding='utf-8') as f:
+    with open(os.path.join(root_path, label_file), encoding='utf-8') as f:
         label_list = f.readlines()
     tusimples = []
-    for idx, str in enumerate(tqdm(label_list, leave=True, ncols=100, colour="CYAN")):
+    for idx, str in enumerate(tqdm(label_list, leave=True, ncols=100, colour='CYAN')):
         path = str[: str.find(' ')]
-        assert path.startswith('imgs/'), f"check {label_file}"
-        assert PIL.Image.open(os.path.join(imgs_path, path[5:])).size == (1920, 1080), "All image must be 1920 * 1080!"
+        assert path.startswith('imgs/'), f'check {label_file}'
+        assert PIL.Image.open(os.path.join(imgs_path, path[5:])).size == (1920, 1080), 'All image must be 1920 * 1080!'
         # get path info
         prefix, fullname = os.path.split(os.path.normpath(path[5:]))
         raw_name, extension = os.path.splitext(fullname)
         # update prefix and label_list
-        prefix = f"{prefix[:-1]}rotated" if prefix.endswith('_R') else prefix
-        label_list[idx] = f"imgs/{prefix}/{raw_name}{extension} anns_png/{prefix}/{raw_name}.png\n"
+        prefix = f'{prefix[:-1]}rotated' if prefix.endswith('_R') else prefix
+        label_list[idx] = f'imgs/{prefix}/{raw_name}{extension} anns_png/{prefix}/{raw_name}.png\n'
         # gen tusimple
-        img_path = f"{imgs_path}/{prefix}/{raw_name}{extension}"
-        seg_path = f"{anns_path}/{prefix}/{raw_name}.json"
-        tusimple = generate_tusimple(img_path, seg_path, f"imgs/{prefix}/{raw_name}{extension}")
+        img_path = f'{imgs_path}/{prefix}/{raw_name}{extension}'
+        seg_path = f'{anns_path}/{prefix}/{raw_name}.json'
+        tusimple = generate_tusimple(img_path, seg_path, f'imgs/{prefix}/{raw_name}{extension}')
         tusimples.append(json.dumps(tusimple))
     # export tusimples
     raw_name, _ = os.path.splitext(label_file)
-    os.makedirs(f"{root_path}/{raw_name}_set", exist_ok=True)
-    with open(f"{root_path}/{raw_name}_set/{raw_name}_list.txt", "w", encoding='utf-8') as file:
+    os.makedirs(f'{root_path}/{raw_name}_set', exist_ok=True)
+    with open(f'{root_path}/{raw_name}_set/{raw_name}_list.txt', 'w', encoding='utf-8') as file:
         file.writelines(label_list)
-    with open(f"{root_path}/{raw_name}_set/{raw_name}_label.json", "w", encoding='utf-8') as file:
-        file.write("\n".join(tusimples))
+    with open(f'{root_path}/{raw_name}_set/{raw_name}_label.json', 'w', encoding='utf-8') as file:
+        file.write('\n'.join(tusimples))
 
 
 # Reference: https://github.com/wkentaro/labelme/blob/main/examples/semantic_segmentation/labelme2voc.py
-if __name__ == "__main__":
+if __name__ == '__main__':
     root_path = os.getcwd()
     process_rotate(root_path)
-    process_tusimple(root_path, "test.txt")
-    process_tusimple(root_path, "train.txt")
+    process_tusimple(root_path, 'test.txt')
+    process_tusimple(root_path, 'train.txt')

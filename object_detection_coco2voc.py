@@ -1,13 +1,11 @@
-# -*- coding=utf-8 -*-
-
 import os
-import stat
 import shutil
-import imagesize
-from pycocotools.coco import COCO
-from lxml import etree, objectify
-from tqdm import tqdm
+import stat
 
+import imagesize
+from lxml import etree, objectify
+from pycocotools.coco import COCO
+from tqdm import tqdm
 
 ##################################################################
 #
@@ -28,10 +26,10 @@ def rm_read_only(tmp):
 def coco2voc(annfile, outdir):
     # 创建文件夹
     assert not os.path.exists(outdir)
-    img_savepath = os.path.join(outdir, "imgs")
-    ann_savepath = os.path.join(outdir, "anns")
-    noann_dir = os.path.join(outdir, "noann_result")
-    notRGB_dir = os.path.join(outdir, "notrgb_result")
+    img_savepath = os.path.join(outdir, 'imgs')
+    ann_savepath = os.path.join(outdir, 'anns')
+    noann_dir = os.path.join(outdir, 'noann_result')
+    notRGB_dir = os.path.join(outdir, 'notrgb_result')
     for dir in [outdir, img_savepath, ann_savepath, noann_dir, notRGB_dir]:
         os.makedirs(dir)
 
@@ -39,13 +37,13 @@ def coco2voc(annfile, outdir):
     noann_cnt = 0  # 没有标注数据的图片计数
     notRGB_cnt = 0  # 非三通道RGB的图片计数
     coco = COCO(annfile)
-    classes = {cat["id"]: cat["name"] for cat in coco.dataset["categories"]}
+    classes = {cat['id']: cat['name'] for cat in coco.dataset['categories']}
     imgIds = coco.getImgIds()
     for imgId in tqdm(imgIds):
         # 获取 img 信息
         img = coco.loadImgs(imgId)[0]
-        filename = img["file_name"]
-        annIds = coco.getAnnIds(imgIds=img["id"], iscrowd=None)
+        filename = img['file_name']
+        annIds = coco.getAnnIds(imgIds=img['id'], iscrowd=None)
         anns = coco.loadAnns(annIds)
 
         # 没有 ann
@@ -59,9 +57,9 @@ def coco2voc(annfile, outdir):
         # 解析 ann
         objs = []
         for ann in anns:
-            name = classes[ann["category_id"]]
-            if "bbox" in ann:
-                bbox = ann["bbox"]
+            name = classes[ann['category_id']]
+            if 'bbox' in ann:
+                bbox = ann['bbox']
                 if int(bbox[2]) == 0 or int(bbox[3]) == 0:
                     continue
                 xmin = int(bbox[0])
@@ -71,7 +69,7 @@ def coco2voc(annfile, outdir):
                 obj = [name, xmin, ymin, xmax, ymax]
                 objs.append(obj)
 
-        pos = filename.rfind("/")
+        pos = filename.rfind('/')
         if pos > 0:
             xmlsavepath = f"{filename[pos + 1:filename.rindex('.')]}.xml"
         else:
@@ -81,39 +79,35 @@ def coco2voc(annfile, outdir):
         # 创建xml
         E = objectify.ElementMaker(annotate=False)
         anno_tree = E.annotation(
-            E.folder("imgs"),
+            E.folder('imgs'),
             E.filename(filename),
-            E.source(E.database("COCO"), E.annotation("VOC"), E.image("COCO")),
-            E.size(
-                E.width(width),
-                E.height(height),
-                E.depth(3),
-            ),
+            E.source(E.database('COCO'), E.annotation('VOC'), E.image('COCO')),
+            E.size(E.width(width), E.height(height), E.depth(3)),
             E.segmented(0),
         )
         for obj in objs:
             E2 = objectify.ElementMaker(annotate=False)
             anno_tree2 = E2.object(
                 E.name(obj[0]),
-                E.pose("Unspecified"),
-                E.truncated("0"),
+                E.pose('Unspecified'),
+                E.truncated('0'),
                 E.difficult(0),
                 E.bndbox(E.xmin(obj[1]), E.ymin(obj[2]), E.xmax(obj[3]), E.ymax(obj[4])),
             )
             anno_tree.append(anno_tree2)
-        etree.ElementTree(anno_tree).write(annopath, encoding="UTF-8", pretty_print=True)
+        etree.ElementTree(anno_tree).write(annopath, encoding='UTF-8', pretty_print=True)
 
     # 转换完成
-    print("\n[Info] All process success\n")
+    print('\n[Info] All process success\n')
     if noann_cnt > 0:
-        print(f"[Info] {noann_cnt} 张图片没有instance标注信息, 已存放至 {noann_dir}")
+        print(f'[Info] {noann_cnt} 张图片没有instance标注信息, 已存放至 {noann_dir}')
     else:
         rm_read_only(noann_dir)
     if notRGB_cnt > 0:
-        print(f"[Info] {notRGB_cnt} 张图片是非RGB图像, 已存放至 {notRGB_dir}")
+        print(f'[Info] {notRGB_cnt} 张图片是非RGB图像, 已存放至 {notRGB_dir}')
     else:
         rm_read_only(notRGB_dir)
 
 
-if __name__ == "__main__":
-    coco2voc("./instance_test.json", "./output")
+if __name__ == '__main__':
+    coco2voc('./instance_test.json', './output')

@@ -1,9 +1,7 @@
-# -*- coding=utf-8 -*-
-
 import os
+
 import numpy as np
 from tqdm import tqdm
-
 
 ##################################################################
 #
@@ -41,22 +39,22 @@ def dir2cls(root_path, split_ratio):
         for second_dir in find_dir(first_dir):
             second_name = os.path.basename(second_dir)
             img_list = [f for f in os.listdir(second_dir) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp'))]
-            for file in tqdm(img_list, desc=f"{categorie}/{second_name}\t", leave=True, ncols=150, colour="CYAN"):
-                all_list.append(f"{categorie}/{second_name}/{file}\t{one_hot}\n")
+            for file in tqdm(img_list, desc=f'{categorie}/{second_name}\t', leave=True, ncols=150, colour='CYAN'):
+                all_list.append(f'{categorie}/{second_name}/{file}\t{one_hot}\n')
 
-    with open(os.path.join(root_path, "all_list.txt"), "w", encoding='utf-8') as file:
+    with open(os.path.join(root_path, 'all_list.txt'), 'w', encoding='utf-8') as file:
         file.writelines(all_list)
     test_list = all_list[::split_ratio]
-    with open(os.path.join(root_path, "test.txt"), "w", encoding='utf-8') as file:
+    with open(os.path.join(root_path, 'test.txt'), 'w', encoding='utf-8') as file:
         file.writelines(test_list)
     del all_list[::split_ratio]
-    with open(os.path.join(root_path, "train.txt"), "w", encoding='utf-8') as file:
+    with open(os.path.join(root_path, 'train.txt'), 'w', encoding='utf-8') as file:
         file.writelines(all_list)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     dir2cls(os.getcwd(), 10)
     # 打印数据集中出现的不被允许的标签
     if len(skip_categories) > 0:
-        print(f"\n\033[33m[Warning] 出现但不被允许的标签: \033[0m{sorted(skip_categories, key=ord)}")
-    print("\nAll process success\n")
+        print(f'\n\033[33m[Warning] 出现但不被允许的标签: \033[0m{sorted(skip_categories, key=ord)}')
+    print('\nAll process success\n')

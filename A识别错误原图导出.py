@@ -1,8 +1,7 @@
-# -*- coding=utf-8 -*-
-
+import argparse
 import os
 import shutil
-import argparse
+
 from tqdm import tqdm
 
 ##################################################################
@@ -18,11 +17,11 @@ from tqdm import tqdm
 
 
 def process(root_path):
-    assert os.path.isdir(root_path), f"图片文件夹不存在: {root_path}"
-    res_path = os.path.join(root_path, "result")
-    assert os.path.isdir(res_path), f"结果文件夹不存在: {res_path}"
-    exp_path = os.path.join(root_path, "export")
-    assert not os.path.isdir(exp_path), f"上次的导出文件夹未移动或删除: {exp_path}"
+    assert os.path.isdir(root_path), f'图片文件夹不存在: {root_path}'
+    res_path = os.path.join(root_path, 'result')
+    assert os.path.isdir(res_path), f'结果文件夹不存在: {res_path}'
+    exp_path = os.path.join(root_path, 'export')
+    assert not os.path.isdir(exp_path), f'上次的导出文件夹未移动或删除: {exp_path}'
     os.makedirs(exp_path)
     raw_img_dict = {
         name: it.name
@@ -31,17 +30,17 @@ def process(root_path):
         for name, _ in [os.path.splitext(it.name)]
     }
     res_img_list = [it.name for it in os.scandir(res_path) if it.is_file() and it.name.endswith('_Final.jpg')]
-    assert len(raw_img_dict) >= len(res_img_list), f"结果文件夹中的图片比原图还多"
-    for image in tqdm(res_img_list, leave=True, colour="CYAN"):
+    assert len(raw_img_dict) >= len(res_img_list), '结果文件夹中的图片比原图还多'
+    for image in tqdm(res_img_list, leave=True, colour='CYAN'):
         res_name = os.path.splitext(image)[0][:-6]
         if res_name in raw_img_dict:
             raw_name = raw_img_dict[res_name]
             shutil.copy(os.path.join(root_path, raw_name), os.path.join(exp_path, raw_name))
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('root_path', type=str, help='图片文件夹绝对路径')
     args = parser.parse_args()
     process(args.root_path)
-    print("\nAll process success\n")
+    print('\nAll process success\n')
