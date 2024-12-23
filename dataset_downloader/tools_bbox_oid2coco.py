@@ -7,8 +7,9 @@ from concurrent import futures
 
 import boto3
 import botocore
-import imagesize
+import numpy as np
 import pandas as pd
+import PIL.Image
 import tqdm
 
 try:
@@ -19,13 +20,13 @@ except ImportError:
 # 生成的数据集允许的标签列表
 # fmt: off
 categories = [
-    ['Bird',    'Bird'],        # /m/015p6, Bird, 鸟
-    ['Cat',     'Cat'],         # /m/01yrx, Cat, 猫
-    ['Dog',     'Dog'],         # /m/0bt9lr, Dog, 狗
-    ['Rabbit',  'Rabbit'],      # /m/06mf6, Rabbit, 兔子
-    ['Mouse',   'Mouse'],       # /m/04rmv, Mouse, 老鼠
-    ['Mouse',   'Hamster'],     # /m/03qrc, Hamster, 仓鼠
-    ['Mouse',   'Squirrel'],    # /m/071qp, Squirrel, 松鼠
+    ['Bird',    'Bird',     '/m/015p6'],    # /m/015p6, Bird, 鸟
+    ['Cat',     'Cat',      '/m/01yrx'],    # /m/01yrx, Cat, 猫
+    ['Dog',     'Dog',      '/m/0bt9lr'],   # /m/0bt9lr, Dog, 狗
+    ['Rabbit',  'Rabbit',   '/m/06mf6'],    # /m/06mf6, Rabbit, 兔子
+    ['Mouse',   'Mouse',    '/m/04rmv'],    # /m/04rmv, Mouse, 老鼠
+    ['Mouse',   'Hamster',  '/m/03qrc'],    # /m/03qrc, Hamster, 仓鼠
+    ['Mouse',   'Squirrel', '/m/071qp'],    # /m/071qp, Squirrel, 松鼠
 ]
 # fmt: on
 
@@ -43,57 +44,98 @@ def checkCOCO(coco_file):
 
 # 创建 coco
 def create_COCO(args, task, csv_file, label_code):
-    label_set = {c[0] for c in args.classes}
-    label_list = []
-    for c in args.classes:
-        if c[0] in label_set:
-            label_list.append(c[0])
-            label_set.remove(c[0])
-    # 获取文件夹下所有图片名并排序
+    # 创建从 LabelName 映射到索引的字典
+    label_set = {}
+    label_dict = {}
+    for dst, _, raw_name in categories:
+        if dst not in label_set:
+            label_set[dst] = len(label_set)
+        label_dict[raw_name] = label_set[dst]
+    # 提前获取所有图片尺寸信息并存储在字典中
+    print('[info] Start obtaining image size information...')
     images = sorted([f.split('.')[0] for f in os.listdir(f'./{args.down_folder}/{task}/') if f.endswith('.jpg')])
+    images_info = {}
+    for image in tqdm.tqdm(images, leave=True, colour='CYAN'):
+        image_path = f'{task}/{image}.jpg'
+        width, height = PIL.Image.open(f'./{args.down_folder}/{image_path}').size
+        assert width > 0 and height > 0, f'Invalid image: {image_path}'
+        images_info[image] = (width, height, image_path)
     # 读取标签文件
+    print('[info] Start preprocessing the label dictionary file...')
     annotations = pd.read_csv(csv_file, usecols=['ImageID', 'LabelName', 'XMin', 'XMax', 'YMin', 'YMax'])
+    anns_grouped = annotations.groupby('ImageID')
     # 开始遍历图片列表
+    print('[info] Start create coco file...')
     bbox_id = 0
-    last_index = 0
     coco = dict(categories=[], images=[], annotations=[])  # 建立 coco json 格式
-    for image_id, image in enumerate(tqdm.tqdm(images, desc=f'{task}', leave=True, colour='CYAN')):
-        # 获取图片信息
-        img_path = f'{task}/{image}.jpg'
-        width, height = imagesize.get(f'./{args.down_folder}/{img_path}')
-        assert width > 0 and height > 0
-        # 获取标签信息
-        anns = annotations.loc[annotations['ImageID'] == image]
+    for image_id, image in enumerate(tqdm.tqdm(images, leave=True, colour='CYAN')):
+        anns = anns_grouped.get_group(image) if image in anns_grouped.groups else pd.DataFrame()
         anns = anns[anns['LabelName'].isin(label_code)]
         if anns.empty:
             continue
-        coco['images'].append(dict(id=image_id, file_name=img_path, width=width, height=height))
-        category_ids = [label_list.index(args.classes[label_code.index(name)][0]) for name in anns['LabelName']]
-        coco['annotations'].extend(
-            [
-                {
-                    'id': bbox_id + i,
-                    'image_id': image_id,
-                    'category_id': category_ids[i],
-                    'bbox': [xmin, ymin, xmax - xmin, ymax - ymin],
-                    'segmentation': [[xmin, ymin, xmin, ymax, xmax, ymax, xmax, ymin]],
-                    'area': (xmax - xmin) * (ymax - ymin),
-                    'iscrowd': 0,
-                }
-                for i, (xmin, xmax, ymin, ymax) in enumerate(
-                    zip(anns['XMin'] * width, anns['XMax'] * width, anns['YMin'] * height, anns['YMax'] * height)
-                )
-            ]
-        )
+        width, height, path = images_info[image]
+        coco['images'].append(dict(id=image_id, file_name=path, width=width, height=height))
+        name_list = [label_dict[name] for name in anns['LabelName']]
+        xmin_list = np.array(anns['XMin'].tolist()) * width
+        xmax_list = np.array(anns['XMax'].tolist()) * width
+        ymin_list = np.array(anns['YMin'].tolist()) * height
+        ymax_list = np.array(anns['YMax'].tolist()) * height
+        for i, (name, xmin, xmax, ymin, ymax) in enumerate(zip(name_list, xmin_list, xmax_list, ymin_list, ymax_list)):
+            bbox = dict(
+                id=bbox_id + i,
+                image_id=image_id,
+                category_id=name,
+                bbox=[xmin, ymin, xmax - xmin, ymax - ymin],
+                segmentation=[[xmin, ymin, xmin, ymax, xmax, ymax, xmax, ymin]],
+                area=(xmax - xmin) * (ymax - ymin),
+                iscrowd=0,
+            )
+            coco['annotations'].append(bbox)
         bbox_id += len(anns)
-        end_index = anns.index[-1]
-        annotations = annotations[end_index - last_index + 1 :]
-        last_index = end_index + 1
     # 导出到文件
-    coco['categories'] = [{'id': id, 'name': cat, 'supercategory': cat} for id, cat in enumerate(label_list)]
+    coco['categories'] = [{'id': id, 'name': cat, 'supercategory': cat} for cat, id in label_set.items()]
     with open(f'./{task}.json', 'w', encoding='utf-8') as f:
         json.dump(coco, f, indent=4)
     checkCOCO(f'./{task}.json')  # 检查COCO文件是否正确
+
+
+def create_yolo(args, task, csv_file, label_code, anns_folder='yolo_anns'):
+    # 创建从 LabelName 映射到索引的字典
+    label_set = {}
+    label_dict = {}
+    for dst, _, raw_name in categories:
+        if dst not in label_set:
+            label_set[dst] = len(label_set)
+        label_dict[raw_name] = label_set[dst]
+    # 创建结果文件夹
+    os.makedirs(f'./{anns_folder}/{task}', exist_ok=True)
+    # 读取标签文件
+    print('[info] Start preprocessing the label dictionary file...')
+    annotations = pd.read_csv(csv_file, usecols=['ImageID', 'LabelName', 'XMin', 'XMax', 'YMin', 'YMax'])
+    anns_grouped = annotations.groupby('ImageID')
+    # 开始遍历图片列表
+    image_bbox_dict = {}
+    images = sorted([f.split('.')[0] for f in os.listdir(f'./{args.down_folder}/{task}/') if f.endswith('.jpg')])
+    print('[info] Start create yolo annotation file...')
+    for image in tqdm.tqdm(images, leave=True, colour='CYAN'):
+        # 获取标签信息
+        anns = anns_grouped.get_group(image) if image in anns_grouped.groups else pd.DataFrame()
+        anns = anns[anns['LabelName'].isin(label_code)]
+        if anns.empty:
+            continue
+        bbox = []
+        for name, xmin, xmax, ymin, ymax in zip(
+            anns['LabelName'], anns['XMin'], anns['XMax'], anns['YMin'], anns['YMax']
+        ):
+            width, height = xmax - xmin, ymax - ymin
+            x_center, y_center = xmin + width / 2, ymin + height / 2
+            bbox.append(f'{label_dict[name]} {x_center} {y_center} {width} {height}\n')
+        image_bbox_dict[image] = bbox
+    # 批量写入文件
+    print('[info] Start writing yolo annotation file...')
+    for image, bbox in tqdm.tqdm(image_bbox_dict.items(), leave=True, colour='CYAN'):
+        with open(f'./{anns_folder}/{task}/{image}.txt', 'w', encoding='utf-8') as f:
+            f.writelines(bbox)
 
 
 # 获取标签列表
@@ -163,6 +205,7 @@ def parse_arguments():
     parser.add_argument('--classes', type=str, nargs='+')
     parser.add_argument('--skip_coco', action='store_true', help='skip create coco file.')
     parser.add_argument('--skip_down', action='store_true', help='skip download.')
+    parser.add_argument('--yolo', action='store_true', help='create yolo ann file.')
     parser.add_argument('--down_threads', type=int, default=16, help='Number of parallel processes to use.')
     parser.add_argument('--down_folder', type=str, default='dataset', help='Folder where to download the images.')
     parser.add_argument('--down_limit', type=int, default=0, help='Optional limit on number of images to download.')
@@ -204,9 +247,11 @@ def main():
                 print('[info] All images already downloaded.')
         # create coco
         if not args.skip_coco:
-            assert not os.path.exists(f'./{task}.json'), '待创建的标签文件已存在!'
-            print('[info] start create coco file...')
-            create_COCO(args, task, csv_file, label_code)
+            if not args.yolo:
+                assert not os.path.exists(f'./{task}.json'), '待创建的标签文件已存在!'
+                create_COCO(args, task, csv_file, label_code)
+            else:
+                create_yolo(args, task, csv_file, label_code)
     print('\nAll process success.\n')
 
 
