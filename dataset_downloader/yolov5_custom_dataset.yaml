@@ -1,0 +1,35 @@
+# YOLOv5 🚀 by Ultralytics, GPL-3.0 license
+
+# 便于量化的版本 https://github.com/airockchip/yolov5
+# 完整文档：https://github.com/ultralytics/yolov5/wiki/Train-Custom-Data
+
+# 训练：训练前检查 models/yolov5s.yaml 中设置的类别数是否正确
+# python3 train.py --img 640 --batch 32 --epochs 100 --data custom.yaml --weights yolov5s.pt
+
+# 导出 onnx：
+# python3 export.py --rknpu --weight ./runs/train/exp5/weights/best.pt
+
+
+# dataset root dir
+#   └─ custom
+#        ├─ images
+#        │    ├─ train
+#        │    ├─ test
+#        │    └─ validation ── (图片文件)
+#        └─ labels
+#             ├─ train
+#             ├─ test
+#             └─ validation ── (标签文件)
+
+path: datasets/custom  # dataset root dir
+train: images/train  # train images (relative to 'path')
+val: images/validation  # val images (relative to 'path')
+test: images/test # test images (optional)
+
+# Classes
+names:
+  0: Bird
+  1: Cat
+  2: Dog
+  3: Rabbit
+  4: Mouse
