@@ -11,7 +11,7 @@
 #   4. set _batch_size
 #   5. set _learning_rate
 
-### Start training
+### Start training （暂时不支持 --eval）
 #   python3 -m paddle.distributed.launch tools/train.py -c data/${task_name}/${config_name}.yml
 
 ### Export inference model
@@ -51,8 +51,8 @@ hmsize: &hmsize [48, 64]
 num_classes: 1
 pixel_std: &pixel_std 200
 metric: KeyPointTopDownCOCOEval
-save_dir: workspace
-weights: workspace/${config_name}/best_model.pdparams
+save_dir: workspace/${config_name}
+weights: workspace/${config_name}/model_final.pdparams # 支持 --eval 后改为 best_model
 
 #### >>>>> model <<<<< ######################################
 architecture: TopDownHRNet
