@@ -28,7 +28,7 @@ def getXmlValue(root, name, length):
 
 
 if __name__ == '__main__':
-    root_path = 'D:/Work/Detector/__DataSet/数字仪表/step1_categories/src/P000'
+    root_path = os.getcwd()
     # 获取目录
     img_path = os.path.join(root_path, 'imgs')
     assert os.path.isdir(img_path)

@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 
 # 生成的数据集允许的标签列表
-categories = ['not_uniform', 'blue_uniform', 'pink_uniform', 'white_uniform']
+categories = ['helmet', 'smoke', 'playphone']
 # 数据集中出现的不在允许列表中的标签
 skip_categories = set()
 
@@ -28,19 +28,29 @@ def dir2cls(root_path, split_ratio):
     # 第一层路径
     for first_dir in find_dir(root_path):
         # 获取类名, 检查类名, 生成编码
-        categorie = os.path.basename(first_dir)
-        if categorie not in categories:
-            skip_categories.add(categorie)
+        dirname = os.path.basename(first_dir)
+        continue_flag = False
+        if dirname == 'normal':
+            one_hot = np.zeros(len(categories), dtype=int)
+        else:
+            one_hot = np.zeros(len(categories), dtype=int)
+            parts = dirname.split('_')
+            for p in parts:
+                if p in categories:
+                    one_hot[categories.index(p)] = 1
+                else:
+                    continue_flag = True
+                    break
+        if continue_flag:
+            skip_categories.add(dirname)
             continue
-        one_hot = np.zeros(len(categories), dtype=int)  # 生成全 0 数组
-        one_hot[categories.index(categorie)] = 1  # 按索引置 1
         one_hot = ','.join([str(item) for item in one_hot])  # 将数组转为字符串
         # 遍历第二层路径
         for second_dir in find_dir(first_dir):
             second_name = os.path.basename(second_dir)
             img_list = [f for f in os.listdir(second_dir) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp'))]
-            for file in tqdm(img_list, desc=f'{categorie}/{second_name}\t', leave=True, ncols=150, colour='CYAN'):
-                all_list.append(f'{categorie}/{second_name}/{file}\t{one_hot}\n')
+            for file in tqdm(img_list, desc=f'{dirname}/{second_name}\t', leave=True, ncols=150, colour='CYAN'):
+                all_list.append(f'{dirname}/{second_name}/{file}\t{one_hot}\n')
 
     with open(os.path.join(root_path, 'all_list.txt'), 'w', encoding='utf-8') as file:
         file.writelines(all_list)

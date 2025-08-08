@@ -121,6 +121,8 @@ def process(root_path, save_dir, split_ratio, keep_ratio=True, resize=512, forma
             img_path = f'{work_path}/{dir}/imgs/{raw_name}{extension}'
             det_path = f'{work_path}/{dir}/anns/{raw_name}.xml'
             seg_path = f'{work_path}/{dir}/anns_seg/{raw_name}.json'
+            if not os.path.exists(det_path) or not os.path.exists(seg_path):
+                continue
             # generate
             strs = generate(img_path, det_path, seg_path, classes, save_path, f'{dir}/{raw_name}', keep_ratio, resize)
             dataset.extend(strs)
