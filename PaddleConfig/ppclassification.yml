@@ -187,5 +187,9 @@ Infer:
     topk: *_num_classes
 
 Metric:
+  Train:
+    - AccuracyScore:
+    - HammingDistance:
   Eval:
-    - ATTRMetric:
+    - AccuracyScore:
+    - HammingDistance:

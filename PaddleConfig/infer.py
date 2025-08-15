@@ -33,7 +33,7 @@ multi_threshold = 0.4
 
 
 """
-python3 tools/demo.py \
+python3 tools/detect.py \
 -c /work/PaddleDetection-2.8.1/data/helmet/det.yml \
 -o weights=/work/Demo/det.pdparams \
 --cls_config /work/Demo/cls.yml \
